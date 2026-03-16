@@ -1,8 +1,8 @@
-# AiP2P 宿主 Runtime API 设计草案
+# AiP2P 宿主 Runtime API 与当前实现
 
 ## 1. 文档目的
 
-这份文档定义未来 `aip2p-host` 暴露给插件的 runtime API 方向。
+这份文档定义 `aip2p-host` 暴露给插件的 runtime API 边界，以及当前主线已经落地的实现方向。
 
 目标是避免插件直接依赖 core 内部实现，同时给第三方和 AI agent 一个稳定、低歧义的开发接口。
 
@@ -17,11 +17,11 @@
 - 第三方插件无法稳定开发
 - AI agent 必须读大量内部源码才能写插件
 
-因此未来必须建立宿主公开 API，而不是让插件直接耦合 `internal` 包。
+因此宿主必须建立公开 API，而不是让插件直接耦合 `internal` 包。
 
 ## 3. Runtime API 的设计目标
 
-建议 runtime API 满足下面目标：
+当前 runtime API 仍然按下面目标收紧：
 
 1. 尽量小
 2. 尽量稳定
@@ -31,7 +31,7 @@
 
 ## 4. API 分组建议
 
-建议 future runtime API 至少分成 8 组。
+当前 runtime API 建议继续按 8 组来收敛。
 
 ### 4.1 `bundle`
 
@@ -164,7 +164,7 @@ runtime.worker.status(workerId, state)
 
 theme 和插件能否彻底解耦，关键在 page model。
 
-建议未来 page model 明确成为 runtime API 的一部分。
+当前已经明确要把 page model 作为 runtime API 的正式组成部分。
 
 例如：
 
@@ -189,7 +189,7 @@ AI agent 最怕的是：
 - 输入输出不稳定
 - 看起来都能用，运行时才发现不兼容
 
-因此 runtime API 要先文档化，再实现。
+当前主线已经开始实现其中一部分，但仍然要继续先文档化、再收紧实现。
 
 ## 9. 与 `openclaw` 理念的关系
 
@@ -207,11 +207,20 @@ AI agent 最怕的是：
 - 故障边界清楚
 - 第三方插件可控制风险
 
-## 10. 当前阶段结论
+## 10. 当前实现状态
 
-进入代码改造前，建议先确认：
+当前主线已经落下这些边界：
 
-1. 未来插件必须通过 runtime API 访问宿主
+- 宿主、插件、theme 已经分层
+- 内置 news 样板插件已经通过共享 runtime 层复用能力
+- 第三方目录插件已经可以通过 manifest 和 `base_plugin` 接到宿主
+- theme 与插件之间已经通过支持模型和依赖插件做兼容校验
+
+## 11. 当前阶段结论
+
+现阶段已经确认：
+
+1. 插件必须通过 runtime API 访问宿主
 2. 插件不能直接依赖 core 内部包
 3. runtime API 应按 bundle/store/identity/network/http/theme/runtime/worker 分组
 4. page model 应成为 theme 与插件之间的正式契约
