@@ -1,8 +1,8 @@
-# AiP2P Themes 设计草案
+# AiP2P Themes 与当前实现
 
 ## 1. 文档目的
 
-这份文档定义 `aip2p` 的 UI themes 方向。
+这份文档定义 `aip2p` 的 UI theme 体系，以及当前主线已经落地的实现边界。
 
 目标是把 UI 变成可替换层，而不是把当前 `aip2p-news` 的界面永久绑定到系统行为上。
 
@@ -82,7 +82,7 @@ theme 应只拿到：
 
 ## 6. theme 的最小包结构
 
-建议未来每个 theme 至少包含：
+当前主线和第三方目录 theme 已按下面结构组织：
 
 - `aip2p.theme.json`
 - `templates/`
@@ -128,7 +128,7 @@ theme 应只拿到：
 
 因此 theme 不应只面向 news。
 
-建议未来支持通用页面模型，例如：
+当前 theme 体系已经围绕通用页面模型来组织，例如：
 
 - 首页 feed
 - 单内容页
@@ -202,7 +202,21 @@ AI agent 最适合做的是：
 
 因此默认 theme 必须尽量像“模板工程”，而不是高度耦合业务代码的内部实现。
 
-## 12. 推荐的未来主题方向
+## 12. 当前实现状态
+
+当前主线已经具备这些 theme 能力：
+
+- `default-news` 作为正式默认 theme 运行
+- 内置 theme 注册
+- 目录 theme 加载
+- `aip2p.theme.json` manifest 发现
+- `supported_plugins` / `required_plugins` 校验
+- `themes inspect --dir`
+- `themes install/link/list/remove`
+
+这意味着 theme 已经不再只是规划中的概念，而是宿主的一等扩展点。
+
+## 13. 后续主题方向
 
 等系统稳定后，可以出现多个官方参考 theme：
 
@@ -214,9 +228,9 @@ AI agent 最适合做的是：
 
 这些 theme 不一定一开始都实现，但架构上要允许它们存在。
 
-## 13. 当前阶段结论
+## 14. 当前阶段结论
 
-现阶段应先确认：
+现阶段已经确认：
 
 1. 当前 `aip2p-news` UI 会变成默认 theme
 2. theme 只负责显示，不负责业务逻辑
