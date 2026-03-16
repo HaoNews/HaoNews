@@ -137,6 +137,29 @@ aip2p serve --app-dir .
 
 当前实现中，宿主还会把工作区内每个插件实例的 `runtime/store/archive` 和相关配置文件路径切到独立 scope，减少插件之间互相污染。
 
+当前实现也已经支持本地扩展仓库管理：
+
+- `aip2p plugins install --dir ./my-plugin`
+- `aip2p plugins link --dir ./my-plugin`
+- `aip2p plugins list`
+- `aip2p plugins inspect my-plugin`
+- `aip2p plugins remove my-plugin`
+
+- `aip2p themes install --dir ./my-theme`
+- `aip2p themes link --dir ./my-theme`
+- `aip2p themes list`
+- `aip2p themes inspect my-theme`
+- `aip2p themes remove my-theme`
+
+- `aip2p apps install --dir ./my-app`
+- `aip2p apps link --dir ./my-app`
+- `aip2p apps list`
+- `aip2p apps inspect my-app`
+- `aip2p apps validate my-app`
+- `aip2p apps remove my-app`
+
+安装后的扩展会进入本地扩展仓库，`serve --app/--plugin/--theme` 也会自动发现这些已安装扩展，而不只查内置能力。
+
 ## 5. 需要先提供的官方模板
 
 如果没有模板，第三方和 AI agent 会很难下手。

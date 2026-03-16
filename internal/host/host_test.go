@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"aip2p.org/internal/extensions"
 )
 
 func TestNewLoadsAppDirTheme(t *testing.T) {
@@ -79,6 +81,42 @@ func TestNewDefaultsAppDirRuntimeRoot(t *testing.T) {
 	}
 	if instance.config.RuntimeRoot != filepath.Join(root, "runtime") {
 		t.Fatalf("runtime root = %q", instance.config.RuntimeRoot)
+	}
+}
+
+func TestNewLoadsInstalledAppByID(t *testing.T) {
+	store, err := extensions.Open(t.TempDir())
+	if err != nil {
+		t.Fatalf("open extensions store: %v", err)
+	}
+	appRoot := t.TempDir()
+	writeHostFile(t, appRoot, "aip2p.app.json", "{\n  \"id\": \"installed-app\",\n  \"name\": \"Installed App\",\n  \"plugins\": [\"sample-content\"],\n  \"theme\": \"sample-theme\"\n}\n")
+	writeHostFile(t, appRoot, filepath.Join("plugins", "sample-content", "aip2p.plugin.json"), "{\n  \"id\": \"sample-content\",\n  \"name\": \"Sample Content\",\n  \"base_plugin\": \"news-content\",\n  \"default_theme\": \"sample-theme\"\n}\n")
+	writeHostFile(t, appRoot, filepath.Join("themes", "sample-theme", "aip2p.theme.json"), "{\n  \"id\": \"sample-theme\",\n  \"name\": \"Sample Theme\",\n  \"supported_plugins\": [\"sample-content\"],\n  \"required_plugins\": [\"sample-content\"]\n}\n")
+	writeHostFile(t, appRoot, filepath.Join("themes", "sample-theme", "templates", "home.html"), "home\n")
+	writeHostFile(t, appRoot, filepath.Join("themes", "sample-theme", "templates", "post.html"), "post\n")
+	writeHostFile(t, appRoot, filepath.Join("themes", "sample-theme", "templates", "directory.html"), "directory\n")
+	writeHostFile(t, appRoot, filepath.Join("themes", "sample-theme", "templates", "collection.html"), "collection\n")
+	writeHostFile(t, appRoot, filepath.Join("themes", "sample-theme", "templates", "network.html"), "network\n")
+	writeHostFile(t, appRoot, filepath.Join("themes", "sample-theme", "templates", "archive_index.html"), "archive-index\n")
+	writeHostFile(t, appRoot, filepath.Join("themes", "sample-theme", "templates", "archive_day.html"), "archive-day\n")
+	writeHostFile(t, appRoot, filepath.Join("themes", "sample-theme", "templates", "archive_message.html"), "archive-message\n")
+	writeHostFile(t, appRoot, filepath.Join("themes", "sample-theme", "templates", "writer_policy.html"), "writer-policy\n")
+	writeHostFile(t, appRoot, filepath.Join("themes", "sample-theme", "templates", "partials.html"), "{{/* */}}\n")
+	writeHostFile(t, appRoot, filepath.Join("themes", "sample-theme", "static", "styles.css"), "body{}\n")
+	if _, err := store.InstallApp(appRoot, false); err != nil {
+		t.Fatalf("install app: %v", err)
+	}
+
+	instance, err := New(context.Background(), Config{
+		App:            "installed-app",
+		ExtensionsRoot: store.Paths.Root,
+	})
+	if err != nil {
+		t.Fatalf("new host: %v", err)
+	}
+	if instance.Site().Manifest.ID != "sample-content" {
+		t.Fatalf("plugin id = %q", instance.Site().Manifest.ID)
 	}
 }
 

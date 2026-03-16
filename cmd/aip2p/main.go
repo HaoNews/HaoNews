@@ -17,6 +17,7 @@ import (
 	"aip2p.org/internal/aip2p"
 	"aip2p.org/internal/apphost"
 	"aip2p.org/internal/builtin"
+	"aip2p.org/internal/extensions"
 	"aip2p.org/internal/host"
 	"aip2p.org/internal/scaffold"
 	"aip2p.org/internal/themes/directorytheme"
@@ -200,6 +201,7 @@ func runServe(args []string) error {
 	listenAddr := fs.String("listen", "0.0.0.0:51818", "http listen address")
 	appID := fs.String("app", "", "built-in application id; defaults to the built-in sample app")
 	appDir := fs.String("app-dir", "", "application directory containing aip2p.app.json and optional themes/plugins folders")
+	extensionsRoot := fs.String("extensions-root", "", "installed extensions root; defaults to ~/.aip2p/extensions")
 	pluginID := fs.String("plugin", "", "single built-in plugin id; ignored when --plugins is set")
 	pluginsCSV := fs.String("plugins", "", "comma-separated built-in plugin ids to compose; overrides --plugin")
 	pluginDirsCSV := fs.String("plugin-dir", "", "comma-separated external plugin directories containing aip2p.plugin.json")
@@ -227,6 +229,7 @@ func runServe(args []string) error {
 	instance, err := host.New(ctx, host.Config{
 		App:              *appID,
 		AppDir:           *appDir,
+		ExtensionsRoot:   *extensionsRoot,
 		Plugin:           *pluginID,
 		Plugins:          splitCSV(*pluginsCSV),
 		PluginDirs:       splitCSV(*pluginDirsCSV),
@@ -256,85 +259,265 @@ func runServe(args []string) error {
 
 func runPlugins(args []string) error {
 	if len(args) == 0 {
-		return errors.New("usage: aip2p plugins <list|inspect>")
+		return errors.New("usage: aip2p plugins <list|inspect|install|link|remove>")
 	}
 	switch args[0] {
 	case "list":
+		fs := flag.NewFlagSet("plugins list", flag.ContinueOnError)
+		fs.SetOutput(os.Stderr)
+		root := fs.String("root", "", "extensions root override")
+		if err := fs.Parse(args[1:]); err != nil {
+			return err
+		}
 		registry := builtin.DefaultRegistry()
+		store, err := extensions.Open(*root)
+		if err != nil {
+			return err
+		}
+		installed, err := store.ListPlugins()
+		if err != nil {
+			return err
+		}
+		plugins := make([]any, 0, len(registry.PluginManifests())+len(installed))
+		for _, manifest := range registry.PluginManifests() {
+			plugins = append(plugins, map[string]any{
+				"source":   "builtin",
+				"manifest": manifest,
+			})
+		}
+		for _, entry := range installed {
+			plugins = append(plugins, map[string]any{
+				"source":   "installed",
+				"root":     entry.Root,
+				"manifest": entry.Manifest,
+				"config":   entry.Config,
+				"metadata": entry.Metadata,
+			})
+		}
 		return writeJSON(struct {
 			Plugins []any `json:"plugins"`
 		}{
-			Plugins: manifestsToAny(registry.PluginManifests()),
+			Plugins: plugins,
 		})
 	case "inspect":
 		fs := flag.NewFlagSet("plugins inspect", flag.ContinueOnError)
 		fs.SetOutput(os.Stderr)
 		dir := fs.String("dir", "", "plugin directory containing aip2p.plugin.json")
+		root := fs.String("root", "", "extensions root override")
 		if err := fs.Parse(args[1:]); err != nil {
 			return err
 		}
 		registry := builtin.DefaultRegistry()
-		bundle, err := workspace.LoadPluginBundleDir(*dir)
+		store, err := extensions.Open(*root)
 		if err != nil {
 			return err
 		}
-		_, manifest, err := workspace.LoadPluginDir(*dir, registry)
+		if _, err := store.RegisterIntoRegistry(registry, "", "", ""); err != nil {
+			return err
+		}
+		if strings.TrimSpace(*dir) != "" {
+			bundle, err := workspace.LoadPluginBundleDir(*dir)
+			if err != nil {
+				return err
+			}
+			_, manifest, err := workspace.LoadPluginDir(*dir, registry)
+			if err != nil {
+				return err
+			}
+			resolved, err := workspace.ValidatePluginManifest(manifest, registry)
+			if err != nil {
+				return err
+			}
+			resolved.Root = bundle.Root
+			resolved.Config = bundle.Config
+			return writeJSON(struct {
+				Dir      string                   `json:"dir"`
+				Manifest apphost.PluginManifest   `json:"manifest"`
+				Config   map[string]any           `json:"config,omitempty"`
+				Resolved workspace.ResolvedPlugin `json:"resolved"`
+			}{
+				Dir:      *dir,
+				Manifest: manifest,
+				Config:   bundle.Config,
+				Resolved: resolved,
+			})
+		}
+		if fs.NArg() == 0 {
+			return errors.New("plugin id or --dir is required")
+		}
+		id := fs.Arg(0)
+		if entry, err := store.GetPlugin(id); err == nil {
+			resolved, err := workspace.ValidatePluginManifest(entry.Manifest, registry)
+			if err != nil {
+				return err
+			}
+			resolved.Root = entry.Root
+			resolved.Config = entry.Config
+			return writeJSON(struct {
+				Source   string                     `json:"source"`
+				Root     string                     `json:"root"`
+				Manifest apphost.PluginManifest     `json:"manifest"`
+				Config   map[string]any             `json:"config,omitempty"`
+				Metadata extensions.InstallMetadata `json:"metadata"`
+				Resolved workspace.ResolvedPlugin   `json:"resolved"`
+			}{
+				Source:   "installed",
+				Root:     entry.Root,
+				Manifest: entry.Manifest,
+				Config:   entry.Config,
+				Metadata: entry.Metadata,
+				Resolved: resolved,
+			})
+		}
+		_, manifest, err := registry.ResolvePlugin(id)
 		if err != nil {
 			return err
 		}
-		resolved, err := workspace.ValidatePluginManifest(manifest, registry)
-		if err != nil {
-			return err
-		}
-		resolved.Root = bundle.Root
-		resolved.Config = bundle.Config
 		return writeJSON(struct {
-			Dir      string                   `json:"dir"`
-			Manifest apphost.PluginManifest   `json:"manifest"`
-			Config   map[string]any           `json:"config,omitempty"`
-			Resolved workspace.ResolvedPlugin `json:"resolved"`
+			Source   string                 `json:"source"`
+			Manifest apphost.PluginManifest `json:"manifest"`
 		}{
-			Dir:      *dir,
+			Source:   "builtin",
 			Manifest: manifest,
-			Config:   bundle.Config,
-			Resolved: resolved,
 		})
+	case "install", "link":
+		fs := flag.NewFlagSet("plugins "+args[0], flag.ContinueOnError)
+		fs.SetOutput(os.Stderr)
+		dir := fs.String("dir", "", "plugin directory containing aip2p.plugin.json")
+		root := fs.String("root", "", "extensions root override")
+		if err := fs.Parse(args[1:]); err != nil {
+			return err
+		}
+		store, err := extensions.Open(*root)
+		if err != nil {
+			return err
+		}
+		entry, err := store.InstallPlugin(*dir, args[0] == "link")
+		if err != nil {
+			return err
+		}
+		return writeJSON(entry)
+	case "remove":
+		fs := flag.NewFlagSet("plugins remove", flag.ContinueOnError)
+		fs.SetOutput(os.Stderr)
+		root := fs.String("root", "", "extensions root override")
+		if err := fs.Parse(args[1:]); err != nil {
+			return err
+		}
+		if fs.NArg() == 0 {
+			return errors.New("plugin id is required")
+		}
+		store, err := extensions.Open(*root)
+		if err != nil {
+			return err
+		}
+		if err := store.RemovePlugin(fs.Arg(0)); err != nil {
+			return err
+		}
+		return writeJSON(map[string]any{"removed": fs.Arg(0)})
 	default:
-		return errors.New("usage: aip2p plugins <list|inspect>")
+		return errors.New("usage: aip2p plugins <list|inspect|install|link|remove>")
 	}
 }
 
 func runApps(args []string) error {
 	if len(args) == 0 {
-		return errors.New("usage: aip2p apps <list|inspect|validate>")
+		return errors.New("usage: aip2p apps <list|inspect|validate|install|link|remove>")
 	}
 	switch args[0] {
 	case "list":
+		fs := flag.NewFlagSet("apps list", flag.ContinueOnError)
+		fs.SetOutput(os.Stderr)
+		root := fs.String("root", "", "extensions root override")
+		if err := fs.Parse(args[1:]); err != nil {
+			return err
+		}
+		store, err := extensions.Open(*root)
+		if err != nil {
+			return err
+		}
+		installed, err := store.ListApps()
+		if err != nil {
+			return err
+		}
+		apps := make([]any, 0, len(builtin.DefaultApps())+len(installed))
+		for _, app := range builtin.DefaultApps() {
+			apps = append(apps, map[string]any{
+				"source": "builtin",
+				"app":    app,
+			})
+		}
+		for _, entry := range installed {
+			apps = append(apps, map[string]any{
+				"source":   "installed",
+				"root":     entry.Root,
+				"app":      entry.Manifest,
+				"config":   entry.Config,
+				"metadata": entry.Metadata,
+			})
+		}
 		return writeJSON(struct {
-			Apps []apphost.AppManifest `json:"apps"`
+			Apps []any `json:"apps"`
 		}{
-			Apps: builtin.DefaultApps(),
+			Apps: apps,
 		})
 	case "inspect":
 		fs := flag.NewFlagSet("apps inspect", flag.ContinueOnError)
 		fs.SetOutput(os.Stderr)
 		dir := fs.String("dir", "", "application directory containing aip2p.app.json")
+		root := fs.String("root", "", "extensions root override")
 		if err := fs.Parse(args[1:]); err != nil {
 			return err
 		}
-		bundle, report, err := inspectAppDir(*dir)
+		if strings.TrimSpace(*dir) != "" {
+			bundle, report, err := inspectAppDir(*dir, *root)
+			if err != nil {
+				return err
+			}
+			return writeJSON(struct {
+				Dir        string                     `json:"dir"`
+				App        apphost.AppManifest        `json:"app"`
+				Config     workspace.AppConfig        `json:"config"`
+				Plugins    []apphost.PluginManifest   `json:"plugins"`
+				Themes     []apphost.ThemeManifest    `json:"themes"`
+				Validation workspace.ValidationReport `json:"validation"`
+			}{
+				Dir:        *dir,
+				App:        bundle.App,
+				Config:     bundle.Config,
+				Plugins:    bundle.PluginManifests,
+				Themes:     bundle.ThemeManifests,
+				Validation: report,
+			})
+		}
+		if fs.NArg() == 0 {
+			return errors.New("app id or --dir is required")
+		}
+		store, err := extensions.Open(*root)
+		if err != nil {
+			return err
+		}
+		entry, err := store.GetApp(fs.Arg(0))
+		if err != nil {
+			return err
+		}
+		bundle, report, err := inspectAppDir(entry.Root, *root)
 		if err != nil {
 			return err
 		}
 		return writeJSON(struct {
-			Dir        string                     `json:"dir"`
+			Source     string                     `json:"source"`
+			Root       string                     `json:"root"`
+			Metadata   extensions.InstallMetadata `json:"metadata"`
 			App        apphost.AppManifest        `json:"app"`
 			Config     workspace.AppConfig        `json:"config"`
 			Plugins    []apphost.PluginManifest   `json:"plugins"`
 			Themes     []apphost.ThemeManifest    `json:"themes"`
 			Validation workspace.ValidationReport `json:"validation"`
 		}{
-			Dir:        *dir,
+			Source:     "installed",
+			Root:       entry.Root,
+			Metadata:   entry.Metadata,
 			App:        bundle.App,
 			Config:     bundle.Config,
 			Plugins:    bundle.PluginManifests,
@@ -345,16 +528,67 @@ func runApps(args []string) error {
 		fs := flag.NewFlagSet("apps validate", flag.ContinueOnError)
 		fs.SetOutput(os.Stderr)
 		dir := fs.String("dir", "", "application directory containing aip2p.app.json")
+		root := fs.String("root", "", "extensions root override")
 		if err := fs.Parse(args[1:]); err != nil {
 			return err
 		}
-		_, report, err := inspectAppDir(*dir)
+		target := strings.TrimSpace(*dir)
+		if target == "" {
+			if fs.NArg() == 0 {
+				return errors.New("app id or --dir is required")
+			}
+			store, err := extensions.Open(*root)
+			if err != nil {
+				return err
+			}
+			entry, err := store.GetApp(fs.Arg(0))
+			if err != nil {
+				return err
+			}
+			target = entry.Root
+		}
+		_, report, err := inspectAppDir(target, *root)
 		if err != nil {
 			return err
 		}
 		return writeJSON(report)
+	case "install", "link":
+		fs := flag.NewFlagSet("apps "+args[0], flag.ContinueOnError)
+		fs.SetOutput(os.Stderr)
+		dir := fs.String("dir", "", "application directory containing aip2p.app.json")
+		root := fs.String("root", "", "extensions root override")
+		if err := fs.Parse(args[1:]); err != nil {
+			return err
+		}
+		store, err := extensions.Open(*root)
+		if err != nil {
+			return err
+		}
+		entry, err := store.InstallApp(*dir, args[0] == "link")
+		if err != nil {
+			return err
+		}
+		return writeJSON(entry)
+	case "remove":
+		fs := flag.NewFlagSet("apps remove", flag.ContinueOnError)
+		fs.SetOutput(os.Stderr)
+		root := fs.String("root", "", "extensions root override")
+		if err := fs.Parse(args[1:]); err != nil {
+			return err
+		}
+		if fs.NArg() == 0 {
+			return errors.New("app id is required")
+		}
+		store, err := extensions.Open(*root)
+		if err != nil {
+			return err
+		}
+		if err := store.RemoveApp(fs.Arg(0)); err != nil {
+			return err
+		}
+		return writeJSON(map[string]any{"removed": fs.Arg(0)})
 	default:
-		return errors.New("usage: aip2p apps <list|inspect|validate>")
+		return errors.New("usage: aip2p apps <list|inspect|validate|install|link|remove>")
 	}
 }
 
@@ -412,36 +646,135 @@ func filePaths(files []scaffold.File) []string {
 
 func runThemes(args []string) error {
 	if len(args) == 0 {
-		return errors.New("usage: aip2p themes <list|inspect>")
+		return errors.New("usage: aip2p themes <list|inspect|install|link|remove>")
 	}
 	switch args[0] {
 	case "list":
+		fs := flag.NewFlagSet("themes list", flag.ContinueOnError)
+		fs.SetOutput(os.Stderr)
+		root := fs.String("root", "", "extensions root override")
+		if err := fs.Parse(args[1:]); err != nil {
+			return err
+		}
 		registry := builtin.DefaultRegistry()
+		store, err := extensions.Open(*root)
+		if err != nil {
+			return err
+		}
+		installed, err := store.ListThemes()
+		if err != nil {
+			return err
+		}
+		themes := make([]any, 0, len(registry.ThemeManifests())+len(installed))
+		for _, manifest := range registry.ThemeManifests() {
+			themes = append(themes, map[string]any{
+				"source":   "builtin",
+				"manifest": manifest,
+			})
+		}
+		for _, entry := range installed {
+			themes = append(themes, map[string]any{
+				"source":   "installed",
+				"root":     entry.Root,
+				"manifest": entry.Manifest,
+				"metadata": entry.Metadata,
+			})
+		}
 		return writeJSON(struct {
 			Themes []any `json:"themes"`
 		}{
-			Themes: manifestsToAny(registry.ThemeManifests()),
+			Themes: themes,
 		})
 	case "inspect":
 		fs := flag.NewFlagSet("themes inspect", flag.ContinueOnError)
 		fs.SetOutput(os.Stderr)
 		dir := fs.String("dir", "", "theme directory containing aip2p.theme.json")
+		root := fs.String("root", "", "extensions root override")
 		if err := fs.Parse(args[1:]); err != nil {
 			return err
 		}
-		theme, err := directorytheme.Load(*dir)
+		if strings.TrimSpace(*dir) != "" {
+			theme, err := directorytheme.Load(*dir)
+			if err != nil {
+				return err
+			}
+			return writeJSON(struct {
+				Dir      string                `json:"dir"`
+				Manifest apphost.ThemeManifest `json:"manifest"`
+			}{
+				Dir:      *dir,
+				Manifest: theme.Manifest(),
+			})
+		}
+		if fs.NArg() == 0 {
+			return errors.New("theme id or --dir is required")
+		}
+		store, err := extensions.Open(*root)
+		if err != nil {
+			return err
+		}
+		if entry, err := store.GetTheme(fs.Arg(0)); err == nil {
+			return writeJSON(struct {
+				Source   string                     `json:"source"`
+				Root     string                     `json:"root"`
+				Manifest apphost.ThemeManifest      `json:"manifest"`
+				Metadata extensions.InstallMetadata `json:"metadata"`
+			}{
+				Source:   "installed",
+				Root:     entry.Root,
+				Manifest: entry.Manifest,
+				Metadata: entry.Metadata,
+			})
+		}
+		registry := builtin.DefaultRegistry()
+		_, manifest, err := registry.ResolveTheme(fs.Arg(0))
 		if err != nil {
 			return err
 		}
 		return writeJSON(struct {
-			Dir      string                `json:"dir"`
+			Source   string                `json:"source"`
 			Manifest apphost.ThemeManifest `json:"manifest"`
 		}{
-			Dir:      *dir,
-			Manifest: theme.Manifest(),
+			Source:   "builtin",
+			Manifest: manifest,
 		})
+	case "install", "link":
+		fs := flag.NewFlagSet("themes "+args[0], flag.ContinueOnError)
+		fs.SetOutput(os.Stderr)
+		dir := fs.String("dir", "", "theme directory containing aip2p.theme.json")
+		root := fs.String("root", "", "extensions root override")
+		if err := fs.Parse(args[1:]); err != nil {
+			return err
+		}
+		store, err := extensions.Open(*root)
+		if err != nil {
+			return err
+		}
+		entry, err := store.InstallTheme(*dir, args[0] == "link")
+		if err != nil {
+			return err
+		}
+		return writeJSON(entry)
+	case "remove":
+		fs := flag.NewFlagSet("themes remove", flag.ContinueOnError)
+		fs.SetOutput(os.Stderr)
+		root := fs.String("root", "", "extensions root override")
+		if err := fs.Parse(args[1:]); err != nil {
+			return err
+		}
+		if fs.NArg() == 0 {
+			return errors.New("theme id is required")
+		}
+		store, err := extensions.Open(*root)
+		if err != nil {
+			return err
+		}
+		if err := store.RemoveTheme(fs.Arg(0)); err != nil {
+			return err
+		}
+		return writeJSON(map[string]any{"removed": fs.Arg(0)})
 	default:
-		return errors.New("usage: aip2p themes <list|inspect>")
+		return errors.New("usage: aip2p themes <list|inspect|install|link|remove>")
 	}
 }
 
@@ -453,12 +786,19 @@ func manifestsToAny[T any](items []T) []any {
 	return out
 }
 
-func inspectAppDir(dir string) (workspace.AppBundle, workspace.ValidationReport, error) {
+func inspectAppDir(dir, extensionsRoot string) (workspace.AppBundle, workspace.ValidationReport, error) {
 	bundle, err := workspace.LoadAppBundle(dir)
 	if err != nil {
 		return workspace.AppBundle{}, workspace.ValidationReport{}, err
 	}
 	registry := builtin.DefaultRegistry()
+	store, err := extensions.Open(extensionsRoot)
+	if err != nil {
+		return workspace.AppBundle{}, workspace.ValidationReport{}, err
+	}
+	if _, err := store.RegisterIntoRegistry(registry, "", "", bundle.App.ID); err != nil {
+		return workspace.AppBundle{}, workspace.ValidationReport{}, err
+	}
 	plugins, _, err := workspace.LoadPlugins(filepath.Join(bundle.Root, "plugins"), registry)
 	if err != nil {
 		return workspace.AppBundle{}, workspace.ValidationReport{}, err

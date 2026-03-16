@@ -12,6 +12,7 @@ import (
 
 	"aip2p.org/internal/apphost"
 	"aip2p.org/internal/builtin"
+	"aip2p.org/internal/extensions"
 	"aip2p.org/internal/themes/directorytheme"
 	"aip2p.org/internal/workspace"
 )
@@ -25,6 +26,7 @@ type Config struct {
 	Theme            string
 	ThemeDir         string
 	AppDir           string
+	ExtensionsRoot   string
 	Project          string
 	Version          string
 	ListenAddr       string
@@ -49,11 +51,26 @@ type Instance struct {
 
 func New(ctx context.Context, cfg Config) (*Instance, error) {
 	cfg = normalizeConfig(cfg)
+	registry := builtin.DefaultRegistry()
+	store, err := extensions.Open(cfg.ExtensionsRoot)
+	if err != nil {
+		return nil, err
+	}
+	installedApps, err := store.RegisterIntoRegistry(registry, "", "", "")
+	if err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(cfg.AppDir) == "" && strings.TrimSpace(cfg.App) != "" {
+		if _, err := builtin.ResolveApp(cfg.App); err != nil {
+			if installedApp, ok := installedApps[strings.ToLower(strings.TrimSpace(cfg.App))]; ok {
+				cfg.AppDir = installedApp.Root
+			}
+		}
+	}
 	appDirExplicit := strings.TrimSpace(cfg.AppDir) != ""
 	themeExplicit := strings.TrimSpace(cfg.Theme) != ""
 	var bundle workspace.AppBundle
 	if appDirExplicit {
-		var err error
 		bundle, err = workspace.LoadAppBundle(cfg.AppDir)
 		if err != nil {
 			return nil, err
@@ -93,7 +110,6 @@ func New(ctx context.Context, cfg Config) (*Instance, error) {
 			}
 		}
 	}
-	registry := builtin.DefaultRegistry()
 	loadedPluginIDs := make([]string, 0)
 	if appDirExplicit {
 		plugins, manifests, err := workspace.LoadPlugins(filepath.Join(bundle.Root, "plugins"), registry)
