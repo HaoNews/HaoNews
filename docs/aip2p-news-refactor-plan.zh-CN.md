@@ -400,6 +400,6 @@
 
 后续仍然值得继续细化的文档包括：
 
-- 插件 manifest 草案
-- theme manifest 草案
-- runtime API 草案
+- 插件 manifest
+- theme manifest
+- runtime API
