@@ -26,7 +26,7 @@
 
 ## 3. 总体阶段
 
-建议把改造拆成 6 个阶段。
+建议把改造拆成 6 个阶段。当前主线已经完成了前半段的大部分基础工作。
 
 ## 4. Phase 0：设计冻结
 
@@ -79,11 +79,11 @@
 - 不先改视觉
 - 不先做论坛/商城新应用
 
-### 5.4 完成标准
+### 5.4 当前状态
 
-- 宿主可以在不依赖 `aip2p-news` 单体入口的情况下启动
-- 宿主可以识别一个内置插件和一个内置 theme
-- 宿主可以基于 manifest 做基础加载判断
+- 宿主已经可以在不依赖 `aip2p-news` 单体入口的情况下启动
+- 宿主已经可以识别内置插件、内置 theme、目录扩展和已安装扩展
+- 宿主已经可以基于 manifest 做加载、校验和组合判断
 
 ## 6. Phase 2：先拆 theme
 
@@ -107,11 +107,11 @@ theme 先拆出来后：
 - 后面拆业务模块的阻力会更小
 - 也能更早给第三方和 AI agent 一个可复制 theme 模板
 
-### 6.4 完成标准
+### 6.4 当前状态
 
-- 当前 `aip2p-news` UI 能以 `default-news` theme 身份运行
+- 当前 `aip2p-news` UI 已以 `default-news` theme 身份运行
 - theme 不直接读 store 或 runtime 私有文件
-- theme 缺模板时有明确报错
+- theme 已支持 manifest、required_plugins 和目录方式加载
 
 ## 7. Phase 3：拆 `news-content`
 
@@ -126,11 +126,11 @@ theme 先拆出来后：
 - 抽出过滤、排序、分页逻辑
 - 让这些逻辑成为 `news-content` 插件
 
-### 7.3 完成标准
+### 7.3 当前状态
 
-- `news-content` 独立提供 page model
-- `default-news` theme 只消费这些 page model
-- 内容逻辑不再直接依赖当前页面模板实现
+- `news-content` 已独立提供内容页和内容 API
+- `default-news` theme 只消费对应 view model
+- 内容逻辑已不再以整包 `news` 插件形式对外暴露
 
 ## 8. Phase 4：拆 `news-governance`
 
@@ -146,11 +146,11 @@ theme 先拆出来后：
 - 抽出 shared registry / relay trust 逻辑
 - 统一输出治理 view model
 
-### 8.3 完成标准
+### 8.3 当前状态
 
-- 治理逻辑不再散落在内容索引和页面渲染里
-- `news-content` 通过明确接口消费治理结果
-- `/writer-policy` 页面由 theme 渲染治理 view model
+- `news-governance` 已独立提供治理页面
+- 治理逻辑不再作为默认暴露的大插件入口存在
+- 当前剩余工作主要是继续压缩共享 runtime 层
 
 ## 9. Phase 5：拆 `news-archive` 与 `news-ops`
 
@@ -166,11 +166,11 @@ theme 先拆出来后：
 - 抽出 sync supervisor
 - 抽出 network status 与 node health 逻辑
 
-### 9.3 完成标准
+### 9.3 当前状态
 
-- `news-archive` 独立提供归档相关 page model 和 API
-- `news-ops` 独立提供 network/status/worker 相关 page model
-- 主内容模块不直接持有 archive 或 sync supervisor 逻辑
+- `news-archive` 已独立提供归档相关页面和 API
+- `news-ops` 已独立提供 network/status 页面和 API
+- 当前剩余工作主要是继续清理共享层中仍然保留的公共 helper
 
 ## 10. Phase 6：开放扩展生态
 
@@ -243,15 +243,11 @@ theme 先拆出来后：
 
 ## 13. 当前阶段后的直接下一步
 
-在真正改代码前，建议还做一件事：
+当前直接下一步已经变成：
 
-- 把第一阶段准备动到的目录、文件、入口点清单列出来
-
-也就是把“改造路线图”进一步落实成：
-
-- 代码改造清单
-- 迁移顺序清单
-- 验证清单
+- 继续收紧 `internal/plugins/news` 共享运行时层
+- 继续清理过时文档表述
+- 继续打磨第三方开发和安装链路
 
 ## 14. 结论
 
