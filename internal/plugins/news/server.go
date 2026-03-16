@@ -441,75 +441,6 @@ func ensureRuntimeLayout(storeRoot, archiveRoot, rulesPath, writerPath, netPath 
 	return nil
 }
 
-func (a *App) handler() http.Handler {
-	mux := http.NewServeMux()
-	staticFS := a.staticFS
-	if staticFS == nil {
-		var err error
-		staticFS, err = fs.Sub(webFS, "web/static")
-		if err != nil {
-			panic(err)
-		}
-	}
-	a.registerContentRoutes(mux)
-	a.registerArchiveRoutes(mux)
-	a.registerGovernanceRoutes(mux)
-	a.registerOpsRoutes(mux)
-	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.FS(staticFS))))
-	return mux
-}
-
-func (a *App) registerContentRoutes(mux *http.ServeMux) {
-	if !a.options.ContentRoutes {
-		return
-	}
-	mux.HandleFunc("/", a.handleHome)
-	mux.HandleFunc("/posts/", a.handlePost)
-	mux.HandleFunc("/sources", a.handleSources)
-	mux.HandleFunc("/sources/", a.handleSource)
-	mux.HandleFunc("/topics", a.handleTopics)
-	mux.HandleFunc("/topics/", a.handleTopic)
-	if !a.options.ContentAPIRoutes {
-		return
-	}
-	mux.HandleFunc("/api/feed", a.handleAPIFeed)
-	mux.HandleFunc("/api/posts/", a.handleAPIPost)
-	mux.HandleFunc("/api/torrents/", a.handleAPITorrent)
-	mux.HandleFunc("/api/sources", a.handleAPISources)
-	mux.HandleFunc("/api/sources/", a.handleAPISource)
-	mux.HandleFunc("/api/topics", a.handleAPITopics)
-	mux.HandleFunc("/api/topics/", a.handleAPITopic)
-}
-
-func (a *App) registerArchiveRoutes(mux *http.ServeMux) {
-	if a.options.ArchiveRoutes {
-		mux.HandleFunc("/archive", a.handleArchiveIndex)
-		mux.HandleFunc("/archive/", a.handleArchiveSubtree)
-	}
-	if !a.options.HistoryAPIRoutes {
-		return
-	}
-	mux.HandleFunc("/api/history/list", a.handleAPIHistoryList)
-	mux.HandleFunc("/api/history/manifest", a.handleAPIHistoryList)
-}
-
-func (a *App) registerGovernanceRoutes(mux *http.ServeMux) {
-	if !a.options.WriterPolicyRoutes {
-		return
-	}
-	mux.HandleFunc("/writer-policy", a.handleWriterPolicy)
-}
-
-func (a *App) registerOpsRoutes(mux *http.ServeMux) {
-	if a.options.NetworkRoutes {
-		mux.HandleFunc("/network", a.handleNetwork)
-	}
-	if !a.options.NetworkAPIRoutes {
-		return
-	}
-	mux.HandleFunc("/api/network/bootstrap", a.handleAPINetworkBootstrap)
-}
-
 func (a *App) index() (Index, error) {
 	index, err := a.loadIndex(a.storeRoot, a.project)
 	if err != nil {
@@ -778,6 +709,56 @@ func activeFeedValue(opts FeedOptions, key string) string {
 	default:
 		return ""
 	}
+}
+
+func compactIdentity(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return ""
+	}
+	if isPublicKeyish(value) {
+		if len(value) <= 10 {
+			return value
+		}
+		return value[:10] + "..."
+	}
+	if len(value) <= 24 {
+		return value
+	}
+	return value[:24] + "..."
+}
+
+func isPublicKeyish(value string) bool {
+	value = strings.TrimSpace(value)
+	if len(value) < 32 {
+		return false
+	}
+	for _, r := range value {
+		if (r >= '0' && r <= '9') || (r >= 'a' && r <= 'f') || (r >= 'A' && r <= 'F') {
+			continue
+		}
+		return false
+	}
+	return true
+}
+
+func parsePositiveInt(raw string, fallback int) int {
+	value, err := strconv.Atoi(strings.TrimSpace(raw))
+	if err != nil || value < 1 {
+		return fallback
+	}
+	return value
+}
+
+func parseFeedPageSize(raw string) int {
+	value := parsePositiveInt(raw, 20)
+	if value < 1 {
+		return 20
+	}
+	if value > 200 {
+		return 200
+	}
+	return value
 }
 
 func buildActiveFilters(opts FeedOptions, basePath string, omit ...string) []ActiveFilter {
