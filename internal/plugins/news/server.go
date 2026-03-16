@@ -82,6 +82,9 @@ type NodeStatus struct {
 	Summary       string
 	SummaryTone   string
 	SummaryDetail string
+	NetworkStatus string
+	NetworkTone   string
+	NetworkDetail string
 	Entries       []NodeStatusEntry
 	Dashboard     []NodeStatusCard
 }

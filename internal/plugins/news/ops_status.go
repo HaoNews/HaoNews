@@ -109,6 +109,9 @@ func (a *App) nodeStatus(index Index) NodeStatus {
 		Summary:       summary,
 		SummaryTone:   summaryTone,
 		SummaryDetail: summaryDetail,
+		NetworkStatus: "not connected",
+		NetworkTone:   "warn",
+		NetworkDetail: "The sync daemon is not online on this node yet.",
 		Entries: []NodeStatusEntry{
 			{Label: "Overall", Value: summary, Detail: summaryDetail, Tone: summaryTone},
 			{Label: "HTTP UI", Value: "online " + a.httpListenAddr(), Detail: "The local dashboard is reachable on this node.", Tone: "good"},
@@ -257,6 +260,36 @@ func buildLiveNodeStatus(index Index, storeState, storeTone string, torrentCount
 		Summary:       summary,
 		SummaryTone:   summaryTone,
 		SummaryDetail: summaryDetail,
+		NetworkStatus: func() string {
+			switch summary {
+			case "online":
+				return "connected"
+			case "partial":
+				return "partial"
+			default:
+				return "not connected"
+			}
+		}(),
+		NetworkTone: func() string {
+			switch summary {
+			case "online":
+				return "good"
+			case "partial":
+				return "warn"
+			default:
+				return "warn"
+			}
+		}(),
+		NetworkDetail: func() string {
+			switch summary {
+			case "online":
+				return "At least one live network path is working."
+			case "partial":
+				return "Some network paths are up, but the node is not fully healthy yet."
+			default:
+				return "The node is not connected to a healthy live network path."
+			}
+		}(),
 		Entries: []NodeStatusEntry{
 			{Label: "Overall", Value: summary, Detail: summaryDetail, Tone: summaryTone},
 			{Label: "HTTP UI", Value: "online " + listenAddr, Detail: "The local dashboard is reachable on this node.", Tone: "good"},

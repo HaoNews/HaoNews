@@ -16,15 +16,20 @@
         <p class="panel-label">Network dashboard</p>
         <span class="status-pill status-{{.NodeStatus.SummaryTone}}">{{.NodeStatus.Summary}}</span>
       </div>
-      {{range .NodeStatus.Entries}}
-        <div class="rail-stat">
-          <div class="rail-stat-copy">
-            <span>{{.Label}}</span>
-            {{if .Detail}}<small>{{.Detail}}</small>{{end}}
-          </div>
-          <strong class="status-{{.Tone}}">{{.Value}}</strong>
+      <div class="rail-stat">
+        <div class="rail-stat-copy">
+          <span>Overall</span>
+          {{if .NodeStatus.SummaryDetail}}<small>{{.NodeStatus.SummaryDetail}}</small>{{end}}
         </div>
-      {{end}}
+        <strong class="status-{{.NodeStatus.SummaryTone}}">{{.NodeStatus.Summary}}</strong>
+      </div>
+      <div class="rail-stat">
+        <div class="rail-stat-copy">
+          <span>Network</span>
+          {{if .NodeStatus.NetworkDetail}}<small>{{.NodeStatus.NetworkDetail}}</small>{{end}}
+        </div>
+        <strong class="status-{{if .NodeStatus.NetworkTone}}{{.NodeStatus.NetworkTone}}{{else}}warn{{end}}">{{if .NodeStatus.NetworkStatus}}{{.NodeStatus.NetworkStatus}}{{else}}unknown{{end}}</strong>
+      </div>
     </section>
   </aside>
 {{end}}

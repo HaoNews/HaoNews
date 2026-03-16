@@ -25,6 +25,27 @@ func TestPluginBuildServesHomePage(t *testing.T) {
 	if !strings.Contains(rec.Body.String(), "AiP2P News Public") {
 		t.Fatalf("expected home page content, got %q", rec.Body.String())
 	}
+	body := rec.Body.String()
+	for _, want := range []string{
+		`href="/network"`,
+		`href="/writer-policy"`,
+		`href="/archive"`,
+		`>Overall<`,
+		`>Network<`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("expected home page to contain %q, got %q", want, body)
+		}
+	}
+	for _, unwanted := range []string{
+		"Bundle store",
+		"Torrent refs",
+		"Sync daemon",
+	} {
+		if strings.Contains(body, unwanted) {
+			t.Fatalf("expected sidebar to hide %q, got %q", unwanted, body)
+		}
+	}
 }
 
 func TestPluginBuildServesFeedAPI(t *testing.T) {
