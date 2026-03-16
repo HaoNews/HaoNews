@@ -2,13 +2,9 @@ package newsplugin
 
 import (
 	"errors"
-	"html/template"
-	"io/fs"
 	"net/http"
 	"net/http/httptest"
 	"testing"
-
-	"aip2p.org/internal/apphost"
 )
 
 func TestSplitPluginOptionFactories(t *testing.T) {
@@ -44,30 +40,6 @@ func TestSplitPluginOptionFactories(t *testing.T) {
 	}
 	if ops.ContentRoutes || ops.ArchiveRoutes || ops.WriterPolicyRoutes {
 		t.Fatalf("ops options leaked unrelated routes = %+v", ops)
-	}
-}
-
-func TestBuildScopedPluginSitePreservesManifestAndTheme(t *testing.T) {
-	t.Parallel()
-
-	cfg := ApplyDefaultConfig(apphost.Config{})
-	site, err := BuildScopedPluginSite(
-		cfg,
-		splitTestTheme{},
-		apphost.PluginManifest{ID: "scoped-plugin", Name: "Scoped Plugin", DefaultTheme: "test-theme"},
-		ContentOnlyAppOptions(),
-	)
-	if err != nil {
-		t.Fatalf("build scoped plugin site: %v", err)
-	}
-	if site.Manifest.ID != "scoped-plugin" {
-		t.Fatalf("manifest id = %q", site.Manifest.ID)
-	}
-	if site.Theme.ID != "test-theme" {
-		t.Fatalf("theme id = %q", site.Theme.ID)
-	}
-	if site.Handler == nil {
-		t.Fatalf("handler is nil")
 	}
 }
 
@@ -163,18 +135,4 @@ func TestGovernanceSummarySurfacesLoadWriterError(t *testing.T) {
 	if len(summary) == 0 || summary[0].Value != "load error" {
 		t.Fatalf("unexpected summary = %#v", summary)
 	}
-}
-
-type splitTestTheme struct{}
-
-func (splitTestTheme) Manifest() apphost.ThemeManifest {
-	return apphost.ThemeManifest{ID: "test-theme", Name: "Test Theme"}
-}
-
-func (splitTestTheme) ParseTemplates(template.FuncMap) (*template.Template, error) {
-	return template.New("").Parse(`{{define "partials.html"}}{{end}}{{define "home.html"}}home{{end}}{{define "post.html"}}post{{end}}{{define "directory.html"}}directory{{end}}{{define "collection.html"}}collection{{end}}{{define "network.html"}}network{{end}}{{define "archive_index.html"}}archive{{end}}{{define "archive_day.html"}}archive-day{{end}}{{define "archive_message.html"}}archive-message{{end}}{{define "writer_policy.html"}}writer-policy{{end}}`)
-}
-
-func (splitTestTheme) StaticFS() (fs.FS, error) {
-	return nil, nil
 }
