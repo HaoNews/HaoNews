@@ -6,6 +6,32 @@ import (
 	"testing"
 )
 
+func TestResolveCreateTargetUsesPathAsOutput(t *testing.T) {
+	name, out, err := resolveCreateTarget("/tmp/demo-app", "")
+	if err != nil {
+		t.Fatalf("resolveCreateTarget() error = %v", err)
+	}
+	if name != "demo-app" {
+		t.Fatalf("name = %q", name)
+	}
+	if out != "/tmp/demo-app" {
+		t.Fatalf("out = %q", out)
+	}
+}
+
+func TestResolveCreateTargetUsesExplicitOut(t *testing.T) {
+	name, out, err := resolveCreateTarget("/tmp/demo-app", "custom-output")
+	if err != nil {
+		t.Fatalf("resolveCreateTarget() error = %v", err)
+	}
+	if name != "demo-app" {
+		t.Fatalf("name = %q", name)
+	}
+	if out != "custom-output" {
+		t.Fatalf("out = %q", out)
+	}
+}
+
 func TestInspectAppDir(t *testing.T) {
 	root := t.TempDir()
 	writeMainTestFile(t, root, "aip2p.app.json", "{\n  \"id\": \"sample-app\",\n  \"name\": \"Sample App\",\n  \"plugins\": [\"sample-content\"],\n  \"theme\": \"sample-theme\"\n}\n")

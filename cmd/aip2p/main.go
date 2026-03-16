@@ -597,20 +597,23 @@ func runCreate(args []string) error {
 		return errors.New("usage: aip2p create <plugin|theme|app> <name> [--out dir]")
 	}
 	kind := strings.TrimSpace(args[0])
-	name := strings.TrimSpace(args[1])
-	if name == "" {
+	target := strings.TrimSpace(args[1])
+	if target == "" {
 		return errors.New("name is required")
 	}
 	fs := flag.NewFlagSet("create", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
-	outDir := fs.String("out", scaffold.Slug(name), "output directory")
+	outDir := fs.String("out", "", "output directory")
 	if err := fs.Parse(args[2:]); err != nil {
+		return err
+	}
+	name, resolvedOut, err := resolveCreateTarget(target, *outDir)
+	if err != nil {
 		return err
 	}
 
 	var (
 		files []scaffold.File
-		err   error
 	)
 	switch kind {
 	case "plugin":
@@ -625,15 +628,58 @@ func runCreate(args []string) error {
 	if err != nil {
 		return err
 	}
-	if err := scaffold.WriteFiles(*outDir, files); err != nil {
+	if err := scaffold.WriteFiles(resolvedOut, files); err != nil {
 		return err
 	}
 	return writeJSON(map[string]any{
 		"kind":   kind,
 		"name":   name,
-		"output": *outDir,
+		"output": resolvedOut,
 		"files":  filePaths(files),
 	})
+}
+
+func resolveCreateTarget(target, explicitOut string) (string, string, error) {
+	target = strings.TrimSpace(target)
+	if target == "" {
+		return "", "", errors.New("name is required")
+	}
+	explicitOut = strings.TrimSpace(explicitOut)
+	if explicitOut != "" {
+		return targetBaseName(target), explicitOut, nil
+	}
+	if looksLikePath(target) {
+		return targetBaseName(target), target, nil
+	}
+	return target, scaffold.Slug(target), nil
+}
+
+func looksLikePath(value string) bool {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return false
+	}
+	if filepath.IsAbs(value) {
+		return true
+	}
+	switch value {
+	case ".", "..":
+		return true
+	}
+	return strings.Contains(value, "/") || strings.Contains(value, `\`)
+}
+
+func targetBaseName(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return ""
+	}
+	base := filepath.Base(filepath.Clean(value))
+	base = strings.TrimSpace(base)
+	if base == "." || base == string(filepath.Separator) || base == "" {
+		return value
+	}
+	return base
 }
 
 func filePaths(files []scaffold.File) []string {
