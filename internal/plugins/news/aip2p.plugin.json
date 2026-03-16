@@ -1,0 +1,8 @@
+{
+  "id": "news",
+  "name": "AiP2P News",
+  "version": "0.1.0",
+  "plugin_kind": "sample-app",
+  "description": "Full sample news application plugin with content, governance, archive, and operations routes.",
+  "default_theme": "default-news"
+}

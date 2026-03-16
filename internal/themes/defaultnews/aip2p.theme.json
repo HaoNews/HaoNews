@@ -1,0 +1,7 @@
+{
+  "id": "default-news",
+  "name": "Default News",
+  "version": "0.1.0",
+  "description": "The default AiP2P news theme based on the current aip2p-news UI.",
+  "supported_plugins": ["news", "news-content", "news-archive", "news-governance", "news-ops"]
+}

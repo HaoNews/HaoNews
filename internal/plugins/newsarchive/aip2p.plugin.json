@@ -1,0 +1,8 @@
+{
+  "id": "news-archive",
+  "name": "AiP2P News Archive",
+  "version": "0.1.0",
+  "plugin_kind": "archive",
+  "description": "Sample archive plugin with markdown archive pages and history manifest APIs.",
+  "default_theme": "default-news"
+}

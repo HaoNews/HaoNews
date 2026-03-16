@@ -1,0 +1,8 @@
+{
+  "id": "default-news",
+  "name": "Default News App",
+  "version": "0.1.0",
+  "description": "The built-in AiP2P sample application composed from the default news plugins and theme.",
+  "plugins": ["news-content", "news-governance", "news-archive", "news-ops"],
+  "theme": "default-news"
+}
