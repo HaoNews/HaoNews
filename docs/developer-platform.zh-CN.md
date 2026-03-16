@@ -73,6 +73,7 @@ aip2p create plugin my-plugin
 
 ```text
 aip2p create plugin my-plugin
+aip2p plugins inspect --dir ./my-plugin
 aip2p serve --plugin-dir ./my-plugin --theme default-news
 ```
 
@@ -120,6 +121,7 @@ aip2p create app my-blog
 ```text
 aip2p create app my-blog
 cd my-blog
+aip2p apps validate --dir .
 aip2p serve --app-dir .
 ```
 

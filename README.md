@@ -87,6 +87,7 @@ Create and run a third-party plugin pack:
 
 ```bash
 go run ./cmd/aip2p create plugin my-plugin
+go run ./cmd/aip2p plugins inspect --dir ./my-plugin
 go run ./cmd/aip2p serve --plugin-dir ./my-plugin --theme default-news
 ```
 
@@ -95,6 +96,7 @@ Create and run a self-contained app workspace:
 ```bash
 go run ./cmd/aip2p create app my-blog
 cd my-blog
+aip2p apps validate --dir .
 aip2p serve --app-dir .
 ```
 

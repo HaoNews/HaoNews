@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -272,16 +273,23 @@ func runPlugins(args []string) error {
 		if err := fs.Parse(args[1:]); err != nil {
 			return err
 		}
-		manifest, err := workspace.LoadPluginManifestDir(*dir)
+		registry := builtin.DefaultRegistry()
+		_, manifest, err := workspace.LoadPluginDir(*dir, registry)
+		if err != nil {
+			return err
+		}
+		resolved, err := workspace.ValidatePluginManifest(manifest, registry)
 		if err != nil {
 			return err
 		}
 		return writeJSON(struct {
-			Dir      string                 `json:"dir"`
-			Manifest apphost.PluginManifest `json:"manifest"`
+			Dir      string                   `json:"dir"`
+			Manifest apphost.PluginManifest   `json:"manifest"`
+			Resolved workspace.ResolvedPlugin `json:"resolved"`
 		}{
 			Dir:      *dir,
 			Manifest: manifest,
+			Resolved: resolved,
 		})
 	default:
 		return errors.New("usage: aip2p plugins <list|inspect>")
@@ -290,7 +298,7 @@ func runPlugins(args []string) error {
 
 func runApps(args []string) error {
 	if len(args) == 0 {
-		return errors.New("usage: aip2p apps <list|inspect>")
+		return errors.New("usage: aip2p apps <list|inspect|validate>")
 	}
 	switch args[0] {
 	case "list":
@@ -306,23 +314,37 @@ func runApps(args []string) error {
 		if err := fs.Parse(args[1:]); err != nil {
 			return err
 		}
-		bundle, err := workspace.LoadAppBundle(*dir)
+		bundle, report, err := inspectAppDir(*dir)
 		if err != nil {
 			return err
 		}
 		return writeJSON(struct {
-			Dir     string                   `json:"dir"`
-			App     apphost.AppManifest      `json:"app"`
-			Plugins []apphost.PluginManifest `json:"plugins"`
-			Themes  []apphost.ThemeManifest  `json:"themes"`
+			Dir        string                     `json:"dir"`
+			App        apphost.AppManifest        `json:"app"`
+			Plugins    []apphost.PluginManifest   `json:"plugins"`
+			Themes     []apphost.ThemeManifest    `json:"themes"`
+			Validation workspace.ValidationReport `json:"validation"`
 		}{
-			Dir:     *dir,
-			App:     bundle.App,
-			Plugins: bundle.PluginManifests,
-			Themes:  bundle.ThemeManifests,
+			Dir:        *dir,
+			App:        bundle.App,
+			Plugins:    bundle.PluginManifests,
+			Themes:     bundle.ThemeManifests,
+			Validation: report,
 		})
+	case "validate":
+		fs := flag.NewFlagSet("apps validate", flag.ContinueOnError)
+		fs.SetOutput(os.Stderr)
+		dir := fs.String("dir", "", "application directory containing aip2p.app.json")
+		if err := fs.Parse(args[1:]); err != nil {
+			return err
+		}
+		_, report, err := inspectAppDir(*dir)
+		if err != nil {
+			return err
+		}
+		return writeJSON(report)
 	default:
-		return errors.New("usage: aip2p apps <list|inspect>")
+		return errors.New("usage: aip2p apps <list|inspect|validate>")
 	}
 }
 
@@ -419,6 +441,33 @@ func manifestsToAny[T any](items []T) []any {
 		out = append(out, item)
 	}
 	return out
+}
+
+func inspectAppDir(dir string) (workspace.AppBundle, workspace.ValidationReport, error) {
+	bundle, err := workspace.LoadAppBundle(dir)
+	if err != nil {
+		return workspace.AppBundle{}, workspace.ValidationReport{}, err
+	}
+	registry := builtin.DefaultRegistry()
+	plugins, _, err := workspace.LoadPlugins(filepath.Join(bundle.Root, "plugins"), registry)
+	if err != nil {
+		return workspace.AppBundle{}, workspace.ValidationReport{}, err
+	}
+	for _, plugin := range plugins {
+		if err := registry.RegisterPlugin(plugin); err != nil {
+			return workspace.AppBundle{}, workspace.ValidationReport{}, err
+		}
+	}
+	for _, theme := range bundle.Themes {
+		if err := registry.RegisterTheme(theme); err != nil {
+			return workspace.AppBundle{}, workspace.ValidationReport{}, err
+		}
+	}
+	report, err := workspace.ValidateAppBundle(bundle, registry, registry)
+	if err != nil {
+		return workspace.AppBundle{}, workspace.ValidationReport{}, err
+	}
+	return bundle, report, nil
 }
 
 func splitCSV(value string) []string {

@@ -267,6 +267,10 @@ func (r *Registry) ResolvePlugin(id string) (HTTPPlugin, PluginManifest, error) 
 	return r.lookupPlugin(id)
 }
 
+func (r *Registry) ResolveTheme(id string) (WebTheme, ThemeManifest, error) {
+	return r.lookupTheme(id)
+}
+
 func (r *Registry) lookupPlugins(cfg Config) ([]HTTPPlugin, []PluginManifest, error) {
 	ids := make([]string, 0, len(cfg.Plugins)+1)
 	for _, id := range cfg.Plugins {
@@ -399,6 +403,15 @@ func validateThemeCompatibility(plugin PluginManifest, theme ThemeManifest) erro
 		}
 	}
 	return fmt.Errorf("theme %q does not support plugin %q", theme.ID, plugin.ID)
+}
+
+func ValidateSelection(plugins []PluginManifest, theme ThemeManifest) error {
+	for _, plugin := range plugins {
+		if err := validateThemeCompatibility(plugin, theme); err != nil {
+			return err
+		}
+	}
+	return validateThemeRequirements(plugins, theme)
 }
 
 func validateThemeRequirements(plugins []PluginManifest, theme ThemeManifest) error {
