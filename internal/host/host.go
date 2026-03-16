@@ -5,8 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -51,6 +53,11 @@ type Instance struct {
 
 func New(ctx context.Context, cfg Config) (*Instance, error) {
 	cfg = normalizeConfig(cfg)
+	resolvedListenAddr, err := resolveListenAddr(cfg.ListenAddr)
+	if err != nil {
+		return nil, err
+	}
+	cfg.ListenAddr = resolvedListenAddr
 	registry := builtin.DefaultRegistry()
 	store, err := extensions.Open(cfg.ExtensionsRoot)
 	if err != nil {
@@ -215,6 +222,13 @@ func (i *Instance) Site() *apphost.Site {
 	return i.site
 }
 
+func (i *Instance) ListenAddr() string {
+	if i == nil || i.server == nil {
+		return ""
+	}
+	return i.server.Addr
+}
+
 func normalizeConfig(cfg Config) Config {
 	if strings.TrimSpace(cfg.AppDir) == "" && strings.TrimSpace(cfg.App) == "" && len(cfg.Plugins) == 0 && strings.TrimSpace(cfg.Plugin) == "" && len(cfg.PluginDirs) == 0 {
 		cfg.App = "default-news"
@@ -232,6 +246,41 @@ func normalizeConfig(cfg Config) Config {
 		cfg.Logf = log.Printf
 	}
 	return cfg
+}
+
+func resolveListenAddr(addr string) (string, error) {
+	addr = strings.TrimSpace(addr)
+	if addr == "" {
+		return "", errors.New("listen address is required")
+	}
+	host, portText, err := net.SplitHostPort(addr)
+	if err != nil {
+		return addr, nil
+	}
+	port, err := strconv.Atoi(strings.TrimSpace(portText))
+	if err != nil || port <= 0 {
+		return addr, nil
+	}
+	for candidate := port; candidate < port+100; candidate++ {
+		next := net.JoinHostPort(host, strconv.Itoa(candidate))
+		listener, err := net.Listen("tcp", next)
+		if err != nil {
+			if isAddrInUse(err) {
+				continue
+			}
+			return "", err
+		}
+		_ = listener.Close()
+		return next, nil
+	}
+	return "", fmt.Errorf("no available listen port found starting from %s", addr)
+}
+
+func isAddrInUse(err error) bool {
+	if err == nil {
+		return false
+	}
+	return strings.Contains(strings.ToLower(err.Error()), "address already in use")
 }
 
 func applyAppBundleConfig(cfg Config, appCfg workspace.AppConfig) (Config, error) {

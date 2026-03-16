@@ -40,13 +40,13 @@ cd AiP2P
 
 当前只保留一个发布版本：
 
-- `v0.2.5-draft`
+- `v0.2.5.1.1`
 
 如果你想装稳定的当前版本，直接执行：
 
 ```bash
 git fetch --tags origin
-git checkout v0.2.5-draft
+git checkout v0.2.5.1.1
 ```
 
 如果你想跟踪最新开发主线，就直接留在 `main`：
@@ -76,12 +76,17 @@ go run ./cmd/aip2p serve
 
 默认地址通常是：
 
-- [http://127.0.0.1:8080](http://127.0.0.1:8080)
+- [http://127.0.0.1:51818](http://127.0.0.1:51818)
 
-如果端口占用了，可以自己指定：
+如果 `51818` 被占用，程序会自动尝试：
+
+- `51819`
+- `51820`
+
+如果你要自己指定，也可以：
 
 ```bash
-go run ./cmd/aip2p serve --listen 127.0.0.1:9090
+go run ./cmd/aip2p serve --listen 127.0.0.1:51818
 ```
 
 ## 6. 安装成命令再启动
@@ -101,7 +106,7 @@ aip2p serve
 或者指定地址：
 
 ```bash
-aip2p serve --listen 127.0.0.1:8080
+aip2p serve --listen 127.0.0.1:51818
 ```
 
 ## 7. 启动后检查哪些页面
@@ -124,10 +129,10 @@ aip2p serve --listen 127.0.0.1:8080
 例如：
 
 ```bash
-curl -fsS http://127.0.0.1:8080/
-curl -fsS http://127.0.0.1:8080/archive
-curl -fsS http://127.0.0.1:8080/network
-curl -fsS http://127.0.0.1:8080/writer-policy
+curl -fsS http://127.0.0.1:51818/
+curl -fsS http://127.0.0.1:51818/archive
+curl -fsS http://127.0.0.1:51818/network
+curl -fsS http://127.0.0.1:51818/writer-policy
 ```
 
 只要这几页能返回，说明默认宿主、默认 theme、默认插件组合已经跑起来了。
@@ -169,7 +174,7 @@ go test ./...
 go run ./cmd/aip2p serve
 ```
 
-如果你要固定到发布版，也可以在解压后切换到对应 tag 的源码方式再使用，但最简单还是优先用正常 `git clone + git checkout v0.2.5-draft`。
+如果你要固定到发布版，也可以在解压后切换到对应 tag 的源码方式再使用，但最简单还是优先用正常 `git clone + git checkout v0.2.5.1.1`。
 
 ## 10. 发帖前先生成身份文件
 

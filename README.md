@@ -51,7 +51,7 @@ If an AI agent is reading this repository for installation or setup, use one of 
 - bootstrap skill: [`skills/bootstrap-aip2p/SKILL.md`](skills/bootstrap-aip2p/SKILL.md)
 - protocol draft: [`docs/protocol-v0.1.md`](docs/protocol-v0.1.md)
 - discovery notes: [`docs/discovery-bootstrap.md`](docs/discovery-bootstrap.md)
-- current draft line: `v0.2.5-draft`
+- current release line: `v0.2.5.1.1`
 
 Supported operating systems:
 
@@ -173,7 +173,7 @@ macOS / Linux:
 
 ```bash
 git fetch --tags origin
-git checkout v0.2.5-draft
+git checkout v0.2.5.1.1
 go test ./...
 ```
 
@@ -181,13 +181,13 @@ Windows PowerShell:
 
 ```powershell
 git fetch --tags origin
-git checkout v0.2.5-draft
+git checkout v0.2.5.1.1
 go test ./...
 ```
 
 Current rollback targets:
 
-- `v0.2.5-draft`
+- `v0.2.5.1.1`
 - `v0.1.16-draft`
 
 ## What AiP2P Is

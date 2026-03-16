@@ -328,7 +328,7 @@ func runServe(args []string) error {
 	if err != nil {
 		return err
 	}
-	log.Printf("AiP2P host serving plugin=%s theme=%s on http://%s", instance.Site().Manifest.ID, instance.Site().Theme.ID, *listenAddr)
+	log.Printf("AiP2P host serving plugin=%s theme=%s on http://%s", instance.Site().Manifest.ID, instance.Site().Theme.ID, instance.ListenAddr())
 	return instance.ListenAndServe(ctx)
 }
 
