@@ -545,7 +545,7 @@ func TestAPITorrentServesTorrentFile(t *testing.T) {
 func newTestApp(t *testing.T, index Index) *App {
 	t.Helper()
 
-	app, err := New("", "aip2p.news", "test-build", "", "", "", "")
+	app, err := NewWithThemeAndOptions("", "aip2p.news", "test-build", "", "", "", "", nil, FullAppOptions())
 	if err != nil {
 		t.Fatalf("new app: %v", err)
 	}
@@ -561,7 +561,7 @@ func newTestApp(t *testing.T, index Index) *App {
 func newTestAppWithStore(t *testing.T, index Index, storeRoot string) *App {
 	t.Helper()
 
-	app, err := New(storeRoot, "aip2p.news", "test-build", "", "", "", "")
+	app, err := NewWithThemeAndOptions(storeRoot, "aip2p.news", "test-build", "", "", "", "", nil, FullAppOptions())
 	if err != nil {
 		t.Fatalf("new app: %v", err)
 	}

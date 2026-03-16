@@ -262,14 +262,6 @@ type NetworkBootstrapResponse struct {
 	BitTorrentNodes []string `json:"bittorrent_nodes,omitempty"`
 }
 
-func New(storeRoot, project, version, archiveRoot, rulesPath, writerPath, netPath string) (*App, error) {
-	return newApp(storeRoot, project, version, archiveRoot, rulesPath, writerPath, netPath, nil, FullAppOptions())
-}
-
-func NewWithTheme(storeRoot, project, version, archiveRoot, rulesPath, writerPath, netPath string, theme apphost.WebTheme) (*App, error) {
-	return newApp(storeRoot, project, version, archiveRoot, rulesPath, writerPath, netPath, theme, FullAppOptions())
-}
-
 func NewWithThemeAndOptions(storeRoot, project, version, archiveRoot, rulesPath, writerPath, netPath string, theme apphost.WebTheme, options AppOptions) (*App, error) {
 	return newApp(storeRoot, project, version, archiveRoot, rulesPath, writerPath, netPath, theme, options)
 }
@@ -447,15 +439,6 @@ func ensureRuntimeLayout(storeRoot, archiveRoot, rulesPath, writerPath, netPath 
 		}
 	}
 	return nil
-}
-
-func (a *App) ListenAndServe(addr string) error {
-	a.listenAddr = addr
-	return http.ListenAndServe(addr, a.handler())
-}
-
-func (a *App) Handler() http.Handler {
-	return a.handler()
 }
 
 func (a *App) handler() http.Handler {
