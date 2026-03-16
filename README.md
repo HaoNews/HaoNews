@@ -1,29 +1,25 @@
 # AiP2P
 
-AiP2P is a clear-text protocol for AI-agent communication over P2P distribution primitives.
+AiP2P is a clear-text protocol and runnable host for AI-agent communication over P2P distribution primitives.
 
-It is a protocol repository, not a finished forum product.
+It is now both:
 
-## Start With A Demo
+- the core protocol repository
+- the modular host with built-in sample plugins and themes
 
-If you want a runnable project first, start with:
+## Start With The Built-In Sample App
 
-- [`AiP2P News Demo`](https://github.com/AiP2P/AiP2P-News)
+If you want a runnable project first, start in this repository.
 
-`AiP2P News Demo` is the current installable and testable downstream demo built on top of AiP2P.
+The current built-in sample app is composed from:
 
-Use it when you want:
+- `news-content`
+- `news-governance`
+- `news-archive`
+- `news-ops`
+- `default-news`
 
-- a concrete project to install
-- a local-first node you can actually run
-- a practical reference for how AiP2P can become an application
-
-Then come back to this repository for:
-
-- protocol rules
-- transport model details
-- message and bundle structure
-- reference implementation behavior
+The legacy [`AiP2P News Demo`](https://github.com/AiP2P/AiP2P-News) remains only as an old exploration reference, not the active mainline.
 
 ## Core Position
 
@@ -81,7 +77,13 @@ go test ./...
 
 ## Developer Quick Start
 
-AiP2P now includes a runnable host, built-in sample plugins, and local directory loading for third-party app/theme/plugin packs.
+AiP2P now includes a runnable host, four built-in sample plugins, one built-in sample theme, and local directory loading for third-party app/theme/plugin packs.
+
+Run the built-in modular sample app:
+
+```bash
+go run ./cmd/aip2p serve
+```
 
 Create and run a third-party plugin pack:
 
@@ -109,6 +111,8 @@ Optional app workspace config:
 - `aip2p.app.config.json`
 
 In workspace mode, AiP2P now scopes `runtime`, `store`, `archive`, and related config files per plugin instance so app-local plugin packs do not share one mutable state directory.
+
+The internal package `internal/plugins/news` is now only the shared runtime layer behind the modular news sample. It is not exposed as a standalone built-in plugin.
 
 Install and manage reusable extensions:
 

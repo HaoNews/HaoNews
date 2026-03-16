@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"os"
 	"path/filepath"
 	"testing"
@@ -69,6 +70,20 @@ func TestInspectAppDir(t *testing.T) {
 	}
 	if got := report.Plugins[0].Config["channel"]; got != "sample-world" {
 		t.Fatalf("plugin config = %#v", report.Plugins[0].Config)
+	}
+}
+
+func TestParseFlagSetInterspersedKeepsPositionalArgs(t *testing.T) {
+	fs := flag.NewFlagSet("inspect", flag.ContinueOnError)
+	root := fs.String("root", "", "extensions root override")
+	if err := parseFlagSetInterspersed(fs, []string{"sample-app", "--root", "/tmp/extensions"}); err != nil {
+		t.Fatalf("parseFlagSetInterspersed() error = %v", err)
+	}
+	if *root != "/tmp/extensions" {
+		t.Fatalf("root = %q", *root)
+	}
+	if fs.NArg() != 1 || fs.Arg(0) != "sample-app" {
+		t.Fatalf("args = %#v", fs.Args())
 	}
 }
 

@@ -24,6 +24,10 @@ import (
 	"aip2p.org/internal/workspace"
 )
 
+type boolFlag interface {
+	IsBoolFlag() bool
+}
+
 func main() {
 	if err := run(os.Args[1:]); err != nil {
 		fmt.Fprintln(os.Stderr, "error:", err)
@@ -266,7 +270,7 @@ func runPlugins(args []string) error {
 		fs := flag.NewFlagSet("plugins list", flag.ContinueOnError)
 		fs.SetOutput(os.Stderr)
 		root := fs.String("root", "", "extensions root override")
-		if err := fs.Parse(args[1:]); err != nil {
+		if err := parseFlagSetInterspersed(fs, args[1:]); err != nil {
 			return err
 		}
 		registry := builtin.DefaultRegistry()
@@ -304,7 +308,7 @@ func runPlugins(args []string) error {
 		fs.SetOutput(os.Stderr)
 		dir := fs.String("dir", "", "plugin directory containing aip2p.plugin.json")
 		root := fs.String("root", "", "extensions root override")
-		if err := fs.Parse(args[1:]); err != nil {
+		if err := parseFlagSetInterspersed(fs, args[1:]); err != nil {
 			return err
 		}
 		registry := builtin.DefaultRegistry()
@@ -385,7 +389,7 @@ func runPlugins(args []string) error {
 		fs.SetOutput(os.Stderr)
 		dir := fs.String("dir", "", "plugin directory containing aip2p.plugin.json")
 		root := fs.String("root", "", "extensions root override")
-		if err := fs.Parse(args[1:]); err != nil {
+		if err := parseFlagSetInterspersed(fs, args[1:]); err != nil {
 			return err
 		}
 		store, err := extensions.Open(*root)
@@ -401,7 +405,7 @@ func runPlugins(args []string) error {
 		fs := flag.NewFlagSet("plugins remove", flag.ContinueOnError)
 		fs.SetOutput(os.Stderr)
 		root := fs.String("root", "", "extensions root override")
-		if err := fs.Parse(args[1:]); err != nil {
+		if err := parseFlagSetInterspersed(fs, args[1:]); err != nil {
 			return err
 		}
 		if fs.NArg() == 0 {
@@ -429,7 +433,7 @@ func runApps(args []string) error {
 		fs := flag.NewFlagSet("apps list", flag.ContinueOnError)
 		fs.SetOutput(os.Stderr)
 		root := fs.String("root", "", "extensions root override")
-		if err := fs.Parse(args[1:]); err != nil {
+		if err := parseFlagSetInterspersed(fs, args[1:]); err != nil {
 			return err
 		}
 		store, err := extensions.Open(*root)
@@ -466,7 +470,7 @@ func runApps(args []string) error {
 		fs.SetOutput(os.Stderr)
 		dir := fs.String("dir", "", "application directory containing aip2p.app.json")
 		root := fs.String("root", "", "extensions root override")
-		if err := fs.Parse(args[1:]); err != nil {
+		if err := parseFlagSetInterspersed(fs, args[1:]); err != nil {
 			return err
 		}
 		if strings.TrimSpace(*dir) != "" {
@@ -529,7 +533,7 @@ func runApps(args []string) error {
 		fs.SetOutput(os.Stderr)
 		dir := fs.String("dir", "", "application directory containing aip2p.app.json")
 		root := fs.String("root", "", "extensions root override")
-		if err := fs.Parse(args[1:]); err != nil {
+		if err := parseFlagSetInterspersed(fs, args[1:]); err != nil {
 			return err
 		}
 		target := strings.TrimSpace(*dir)
@@ -557,7 +561,7 @@ func runApps(args []string) error {
 		fs.SetOutput(os.Stderr)
 		dir := fs.String("dir", "", "application directory containing aip2p.app.json")
 		root := fs.String("root", "", "extensions root override")
-		if err := fs.Parse(args[1:]); err != nil {
+		if err := parseFlagSetInterspersed(fs, args[1:]); err != nil {
 			return err
 		}
 		store, err := extensions.Open(*root)
@@ -573,7 +577,7 @@ func runApps(args []string) error {
 		fs := flag.NewFlagSet("apps remove", flag.ContinueOnError)
 		fs.SetOutput(os.Stderr)
 		root := fs.String("root", "", "extensions root override")
-		if err := fs.Parse(args[1:]); err != nil {
+		if err := parseFlagSetInterspersed(fs, args[1:]); err != nil {
 			return err
 		}
 		if fs.NArg() == 0 {
@@ -682,6 +686,43 @@ func targetBaseName(value string) string {
 	return base
 }
 
+func parseFlagSetInterspersed(fs *flag.FlagSet, args []string) error {
+	reordered := make([]string, 0, len(args))
+	positionals := make([]string, 0, len(args))
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		if arg == "--" {
+			positionals = append(positionals, args[i+1:]...)
+			break
+		}
+		if !strings.HasPrefix(arg, "-") || arg == "-" {
+			positionals = append(positionals, arg)
+			continue
+		}
+		reordered = append(reordered, arg)
+		if strings.Contains(arg, "=") {
+			continue
+		}
+		name := strings.TrimLeft(arg, "-")
+		if name == "" {
+			continue
+		}
+		info := fs.Lookup(name)
+		if info == nil {
+			continue
+		}
+		if bf, ok := info.Value.(boolFlag); ok && bf.IsBoolFlag() {
+			continue
+		}
+		if i+1 < len(args) {
+			i++
+			reordered = append(reordered, args[i])
+		}
+	}
+	reordered = append(reordered, positionals...)
+	return fs.Parse(reordered)
+}
+
 func filePaths(files []scaffold.File) []string {
 	out := make([]string, 0, len(files))
 	for _, file := range files {
@@ -699,7 +740,7 @@ func runThemes(args []string) error {
 		fs := flag.NewFlagSet("themes list", flag.ContinueOnError)
 		fs.SetOutput(os.Stderr)
 		root := fs.String("root", "", "extensions root override")
-		if err := fs.Parse(args[1:]); err != nil {
+		if err := parseFlagSetInterspersed(fs, args[1:]); err != nil {
 			return err
 		}
 		registry := builtin.DefaultRegistry()
@@ -736,7 +777,7 @@ func runThemes(args []string) error {
 		fs.SetOutput(os.Stderr)
 		dir := fs.String("dir", "", "theme directory containing aip2p.theme.json")
 		root := fs.String("root", "", "extensions root override")
-		if err := fs.Parse(args[1:]); err != nil {
+		if err := parseFlagSetInterspersed(fs, args[1:]); err != nil {
 			return err
 		}
 		if strings.TrimSpace(*dir) != "" {
@@ -789,7 +830,7 @@ func runThemes(args []string) error {
 		fs.SetOutput(os.Stderr)
 		dir := fs.String("dir", "", "theme directory containing aip2p.theme.json")
 		root := fs.String("root", "", "extensions root override")
-		if err := fs.Parse(args[1:]); err != nil {
+		if err := parseFlagSetInterspersed(fs, args[1:]); err != nil {
 			return err
 		}
 		store, err := extensions.Open(*root)
@@ -805,7 +846,7 @@ func runThemes(args []string) error {
 		fs := flag.NewFlagSet("themes remove", flag.ContinueOnError)
 		fs.SetOutput(os.Stderr)
 		root := fs.String("root", "", "extensions root override")
-		if err := fs.Parse(args[1:]); err != nil {
+		if err := parseFlagSetInterspersed(fs, args[1:]); err != nil {
 			return err
 		}
 		if fs.NArg() == 0 {

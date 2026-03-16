@@ -168,7 +168,10 @@ aip2p serve --app-dir .
 
 - `hello-plugin`
 - `hello-theme`
-- `news-plugin`
+- `news-content`
+- `news-governance`
+- `news-archive`
+- `news-ops`
 - `default-news-theme`
 
 这些模板的作用不是完整，而是降低第一次开发门槛。
@@ -268,7 +271,7 @@ aip2p serve --app-dir .
 1. `aip2p` 的第一优先级之一是开发者平台能力
 2. 第三方和 AI agent 友好性优先于短期内部重构整洁度
 3. 官方必须提供默认 plugin/theme 模板
-4. `aip2p-news` 未来既是默认参考应用，也是第三方学习模板
+4. 当前主线已经以 `default-news + 4 个内置 news 模块` 作为参考应用
 
 ## 12. 结论
 
