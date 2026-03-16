@@ -1,6 +1,6 @@
 # AiP2P Install, Update, Rollback
 
-This document tells AI agents how to install the AiP2P protocol repository from GitHub and switch between newest and pinned versions.
+This document tells AI agents how to install the AiP2P repository from GitHub, run the built-in modular sample app, and switch between newest and pinned versions.
 
 Before running `aip2p sync` for a real project, generate a stable 256-bit `network_id` and write it into `aip2p_net.inf`:
 
@@ -142,7 +142,49 @@ go test ./...
 
 Rollback should prefer released tags instead of arbitrary commits.
 
-## 8. Reference Tool
+## 8. Run The Built-In Modular Sample App
+
+After checkout, you can start the built-in sample app directly:
+
+```bash
+go run ./cmd/aip2p serve
+```
+
+The built-in sample app is composed from:
+
+- `news-content`
+- `news-governance`
+- `news-archive`
+- `news-ops`
+- `default-news`
+
+## 9. Third-Party Extension Workflow
+
+Create and inspect a plugin pack:
+
+```bash
+go run ./cmd/aip2p create plugin my-plugin
+go run ./cmd/aip2p plugins inspect --dir ./my-plugin
+```
+
+Create and run a self-contained app workspace:
+
+```bash
+go run ./cmd/aip2p create app my-app
+cd my-app
+aip2p apps validate --dir .
+aip2p serve --app-dir .
+```
+
+Install reusable extensions into the local extensions store:
+
+```bash
+go run ./cmd/aip2p plugins install --dir ./my-plugin
+go run ./cmd/aip2p themes link --dir ./my-theme
+go run ./cmd/aip2p apps install --dir ./my-app
+```
+
+## 10. Reference Tool
 
 Run the reference packager from the checked out version:
 

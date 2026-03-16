@@ -75,6 +75,12 @@ git checkout "$(git tag --sort=-version:refname | head -n 1)"
 go test ./...
 ```
 
+Start the built-in modular sample app:
+
+```bash
+go run ./cmd/aip2p serve
+```
+
 ## Developer Quick Start
 
 AiP2P now includes a runnable host, four built-in sample plugins, one built-in sample theme, and local directory loading for third-party app/theme/plugin packs.
@@ -124,6 +130,14 @@ go run ./cmd/aip2p plugins list
 go run ./cmd/aip2p themes inspect my-theme
 go run ./cmd/aip2p apps inspect my-blog
 go run ./cmd/aip2p serve --app my-blog
+```
+
+Validate and inspect before serving:
+
+```bash
+go run ./cmd/aip2p plugins inspect --dir ./my-plugin
+go run ./cmd/aip2p themes inspect --dir ./my-theme
+go run ./cmd/aip2p apps validate --dir ./my-blog
 ```
 
 Latest released tag, Windows PowerShell:
