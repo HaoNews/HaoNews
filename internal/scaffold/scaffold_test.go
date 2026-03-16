@@ -53,6 +53,9 @@ func TestPluginFilesIncludeBasePlugin(t *testing.T) {
 	if _, ok := paths["aip2p.plugin.config.json"]; !ok {
 		t.Fatalf("missing plugin config scaffold")
 	}
+	if got := paths["aip2p.plugin.config.json"]; !strings.Contains(got, `"sample-plugin/general"`) {
+		t.Fatalf("plugin config does not include generated channel: %q", got)
+	}
 }
 
 func TestAppFilesUseLocalPluginPack(t *testing.T) {
@@ -70,11 +73,17 @@ func TestAppFilesUseLocalPluginPack(t *testing.T) {
 	if _, ok := paths["aip2p.app.config.json"]; !ok {
 		t.Fatalf("missing app config scaffold")
 	}
+	if got := paths["aip2p.app.config.json"]; !strings.Contains(got, `"sample-app.sample"`) {
+		t.Fatalf("app config does not include generated project id: %q", got)
+	}
 	if got := paths["plugins/sample-app-plugin/aip2p.plugin.json"]; got == "" || !strings.Contains(got, `"base_plugin": "news-content"`) {
 		t.Fatalf("app plugin manifest missing base_plugin: %q", got)
 	}
 	if _, ok := paths["plugins/sample-app-plugin/aip2p.plugin.config.json"]; !ok {
 		t.Fatalf("missing app plugin config scaffold")
+	}
+	if got := paths["plugins/sample-app-plugin/aip2p.plugin.config.json"]; !strings.Contains(got, `"sample-app/general"`) {
+		t.Fatalf("app plugin config does not include generated channel: %q", got)
 	}
 	if got := paths["themes/sample-app-theme/aip2p.theme.json"]; got == "" || !strings.Contains(got, `"sample-app-plugin"`) {
 		t.Fatalf("theme manifest does not depend on local plugin: %q", got)
