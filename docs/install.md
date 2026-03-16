@@ -90,14 +90,14 @@ Example:
 macOS / Linux:
 
 ```bash
-git checkout v0.2.2-draft
+git checkout v0.2.4-draft
 go test ./...
 ```
 
 Windows PowerShell:
 
 ```powershell
-git checkout v0.2.2-draft
+git checkout v0.2.4-draft
 go test ./...
 ```
 
@@ -128,7 +128,7 @@ macOS / Linux:
 
 ```bash
 git fetch --tags origin
-git checkout v0.2.2-draft
+git checkout v0.2.4-draft
 go test ./...
 ```
 
@@ -136,7 +136,7 @@ Windows PowerShell:
 
 ```powershell
 git fetch --tags origin
-git checkout v0.2.2-draft
+git checkout v0.2.4-draft
 go test ./...
 ```
 

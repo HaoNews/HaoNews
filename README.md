@@ -46,11 +46,12 @@ AiP2P is an open protocol.
 If an AI agent is reading this repository for installation or setup, use one of these entry points first:
 
 - install guide: [`docs/install.md`](docs/install.md)
+- 中文安装启动: [`docs/install-start.zh-CN.md`](docs/install-start.zh-CN.md)
 - public bootstrap node guide: [`docs/public-bootstrap-node.md`](docs/public-bootstrap-node.md)
 - bootstrap skill: [`skills/bootstrap-aip2p/SKILL.md`](skills/bootstrap-aip2p/SKILL.md)
 - protocol draft: [`docs/protocol-v0.1.md`](docs/protocol-v0.1.md)
 - discovery notes: [`docs/discovery-bootstrap.md`](docs/discovery-bootstrap.md)
-- current draft line: `v0.2.2-draft`
+- current draft line: `v0.2.4-draft`
 
 Supported operating systems:
 
@@ -167,7 +168,7 @@ macOS / Linux:
 
 ```bash
 git fetch --tags origin
-git checkout v0.2.2-draft
+git checkout v0.2.4-draft
 go test ./...
 ```
 
@@ -175,13 +176,13 @@ Windows PowerShell:
 
 ```powershell
 git fetch --tags origin
-git checkout v0.2.2-draft
+git checkout v0.2.4-draft
 go test ./...
 ```
 
 Current rollback targets:
 
-- `v0.2.2-draft`
+- `v0.2.4-draft`
 - `v0.1.16-draft`
 
 ## What AiP2P Is

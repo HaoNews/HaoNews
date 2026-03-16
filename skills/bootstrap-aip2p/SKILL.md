@@ -1,38 +1,29 @@
 ---
 name: bootstrap-aip2p
-description: Install, update, pin, or roll back the AiP2P GitHub repository, then verify the checked out version by running Go tests and the reference CLI help. Use when an AI agent needs to set up AiP2P from GitHub without human file copying.
+description: Install, pin, update, or start the AiP2P modular host from GitHub, then verify the built-in sample app and key pages. Use when an AI agent needs a reliable AiP2P install-and-run workflow.
 ---
 
-# Bootstrap AiP2P
+# 安装并启动 AiP2P
 
-Use this skill when the agent needs to install or update the `AiP2P` repository directly from GitHub.
+当任务是“从 GitHub 安装 AiP2P、启动默认应用、验证页面能访问”时，使用这个 skill。
 
-## Inputs To Decide First
+## 先确认 4 件事
 
-- target directory
-- version mode: `main`, latest tag, or fixed tag
-- whether the goal is install, update, or rollback
-- operating system: macOS, Linux, or Windows PowerShell
+- 目标目录
+- 版本模式：`main`、最新 tag、或固定 tag
+- 操作系统：macOS、Linux、或 Windows PowerShell
+- 是否需要安装为本地二进制
 
-If the user does not specify a version, prefer the latest released tag. If no tag is requested and active development is desired, use `main`.
+如果用户没有指定版本：
 
-Prefer PowerShell-native commands on Windows. Do not give Unix shell substitutions such as `$(...)` to a PowerShell-only environment.
+- 想要稳定版本：优先最新 tag
+- 想要最新开发主线：使用 `main`
 
-## Public Internet Helper Node
+当前单一发布 tag 是：
 
-If the user wants AiP2P nodes in different private networks to connect more reliably, also read:
+- `v0.2.4-draft`
 
-- [`docs/public-bootstrap-node.md`](../../docs/public-bootstrap-node.md)
-
-Important boundary:
-
-- this repository does not yet include a ready-made public bootstrap/rendezvous/relay server binary
-- do not invent unsupported repository commands
-- treat the public helper node as a separate deployment task, then write its final public multiaddrs into `aip2p_net.inf`
-
-## Workflow
-
-1. Clone the repository if it does not exist:
+## 默认安装路径
 
 macOS / Linux:
 
@@ -48,104 +39,141 @@ git clone https://github.com/AiP2P/AiP2P.git
 Set-Location AiP2P
 ```
 
-2. Fetch the newest refs:
+如果当前机器直接 `git clone` 很慢，可以退回源码包下载：
+
+```bash
+curl -L https://codeload.github.com/AiP2P/AiP2P/tar.gz/refs/heads/main -o aip2p-main.tar.gz
+tar -xzf aip2p-main.tar.gz
+cd AiP2P-main
+```
+
+## 版本选择
+
+### 1. 跟踪主线
+
+macOS / Linux:
+
+```bash
+git checkout main
+git pull --ff-only origin main
+```
+
+Windows PowerShell:
+
+```powershell
+git checkout main
+git pull --ff-only origin main
+```
+
+### 2. 使用最新发布 tag
 
 macOS / Linux:
 
 ```bash
 git fetch --tags origin
+git checkout "$(git tag --sort=-version:refname | head -n 1)"
 ```
 
 Windows PowerShell:
 
 ```powershell
 git fetch --tags origin
-```
-
-3. Choose one checkout mode:
-
-- newest development:
-
-  macOS / Linux:
-
-```bash
-git checkout main
-git pull --ff-only origin main
-```
-
-  Windows PowerShell:
-
-```powershell
-git checkout main
-git pull --ff-only origin main
-```
-
-- newest released tag:
-
-  macOS / Linux:
-
-```bash
-git checkout "$(git tag --sort=-version:refname | head -n 1)"
-```
-
-  Windows PowerShell:
-
-```powershell
 $latestTag = git tag --sort=-version:refname | Select-Object -First 1
 git checkout $latestTag
 ```
 
-- exact pinned version:
+### 3. 固定到当前发布版本
 
 ```bash
-git checkout <tag-or-commit>
+git checkout v0.2.4-draft
 ```
 
-4. Verify the checkout:
+## 安装与验证
 
-macOS / Linux:
+先跑测试：
 
 ```bash
 go test ./...
-go run ./cmd/aip2p
 ```
 
-Windows PowerShell:
-
-```powershell
-go test ./...
-go run ./cmd/aip2p
-```
-
-Expected CLI usage output currently includes:
-
-- `publish`
-- `verify`
-- `show`
-
-## Rollback
-
-Prefer rolling back to a released tag:
-
-macOS / Linux:
+如果需要本地安装为命令：
 
 ```bash
-git fetch --tags origin
-git checkout <older-tag>
-go test ./...
+go install ./cmd/aip2p
 ```
 
-Windows PowerShell:
+或者显式安装到临时目录：
 
-```powershell
-git fetch --tags origin
-git checkout <older-tag>
-go test ./...
+```bash
+GOBIN=/tmp/aip2p-bin go install ./cmd/aip2p
 ```
 
-## Agent Notes
+## 启动默认参考应用
 
-- Do not invent unpublished commands.
-- Treat this repository as protocol and reference tooling only.
-- Downstream product behavior belongs in `Latest`, not here.
-- For user-facing installation guidance, also read [`docs/install.md`](../../docs/install.md).
+直接运行源码：
+
+```bash
+go run ./cmd/aip2p serve
+```
+
+或者运行安装后的二进制：
+
+```bash
+aip2p serve
+```
+
+如需指定监听地址：
+
+```bash
+aip2p serve --listen 127.0.0.1:8080
+```
+
+## 启动后必须验证
+
+至少确认这些页面返回正常：
+
+- `/`
+- `/archive`
+- `/network`
+- `/writer-policy`
+
+例如：
+
+```bash
+curl -fsS http://127.0.0.1:8080/
+curl -fsS http://127.0.0.1:8080/archive
+curl -fsS http://127.0.0.1:8080/network
+curl -fsS http://127.0.0.1:8080/writer-policy
+```
+
+## 第三方扩展链路最小验证
+
+安装成功后，至少再跑一条 app 脚手架链路：
+
+```bash
+aip2p create app sample-app
+cd sample-app
+aip2p apps validate --dir .
+```
+
+如果 `valid: true`，说明宿主、插件、theme、工作区装配是通的。
+
+## 边界
+
+- 不要发明仓库里不存在的命令
+- `aip2p_net.inf` 仍然是当前 `sync` 的样例网络配置，不要误删
+- `public helper node` 是单独部署任务，不是当前仓库内置成品
+
+## 给用户的入口
+
+给人看的中文文档：
+
+- [`docs/install-start.zh-CN.md`](../../docs/install-start.zh-CN.md)
+
+安装与更新说明：
+
+- [`docs/install.md`](../../docs/install.md)
+
+公共 bootstrap 节点说明：
+
+- [`docs/public-bootstrap-node.md`](../../docs/public-bootstrap-node.md)
