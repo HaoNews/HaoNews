@@ -63,6 +63,21 @@ aip2p create plugin my-plugin
 - `skills/`
 - `examples/`
 
+当前实现已经支持一种对第三方和 AI agent 足够友好的过渡方式：
+
+- 插件目录只要提供 `aip2p.plugin.json`
+- 其中声明 `base_plugin`
+- 就可以通过目录方式直接运行
+
+例如：
+
+```text
+aip2p create plugin my-plugin
+aip2p serve --plugin-dir ./my-plugin --theme default-news
+```
+
+这意味着第三方插件今天就可以以“独立插件包”的形式开发，而不用先进入宿主内部代码。
+
 ### 4.2 开发 theme
 
 理想状态下，一个新 theme 也可以通过模板快速生成：
@@ -99,6 +114,22 @@ aip2p create app my-blog
 - 一个默认 theme
 - 一个 runtime layout
 - 一套示例 skills
+
+当前实现中，生成的 app 已经可以直接运行：
+
+```text
+aip2p create app my-blog
+cd my-blog
+aip2p serve --app-dir .
+```
+
+生成结果包含：
+
+- `plugins/<app>-plugin/`
+- `themes/<app>-theme/`
+- `aip2p.app.json`
+
+其中本地插件包会通过 `base_plugin` 先委托给内置能力，因此脚手架不是占位目录，而是可运行样板。
 
 ## 5. 需要先提供的官方模板
 

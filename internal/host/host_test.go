@@ -2,6 +2,8 @@ package host
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
@@ -9,8 +11,9 @@ import (
 
 func TestNewLoadsAppDirTheme(t *testing.T) {
 	root := t.TempDir()
-	writeHostFile(t, root, "aip2p.app.json", "{\n  \"id\": \"sample-news\",\n  \"name\": \"Sample News\",\n  \"plugins\": [\"news-content\"],\n  \"theme\": \"sample-theme\"\n}\n")
-	writeHostFile(t, root, filepath.Join("themes", "sample-theme", "aip2p.theme.json"), "{\n  \"id\": \"sample-theme\",\n  \"name\": \"Sample Theme\",\n  \"supported_plugins\": [\"news-content\"],\n  \"required_plugins\": [\"news-content\"]\n}\n")
+	writeHostFile(t, root, "aip2p.app.json", "{\n  \"id\": \"sample-news\",\n  \"name\": \"Sample News\",\n  \"plugins\": [\"sample-content\"],\n  \"theme\": \"sample-theme\"\n}\n")
+	writeHostFile(t, root, filepath.Join("plugins", "sample-content", "aip2p.plugin.json"), "{\n  \"id\": \"sample-content\",\n  \"name\": \"Sample Content\",\n  \"base_plugin\": \"news-content\",\n  \"default_theme\": \"sample-theme\"\n}\n")
+	writeHostFile(t, root, filepath.Join("themes", "sample-theme", "aip2p.theme.json"), "{\n  \"id\": \"sample-theme\",\n  \"name\": \"Sample Theme\",\n  \"supported_plugins\": [\"sample-content\"],\n  \"required_plugins\": [\"sample-content\"]\n}\n")
 	writeHostFile(t, root, filepath.Join("themes", "sample-theme", "templates", "home.html"), "home\n")
 	writeHostFile(t, root, filepath.Join("themes", "sample-theme", "templates", "post.html"), "post\n")
 	writeHostFile(t, root, filepath.Join("themes", "sample-theme", "templates", "directory.html"), "directory\n")
@@ -31,6 +34,15 @@ func TestNewLoadsAppDirTheme(t *testing.T) {
 	}
 	if instance.Site().Theme.ID != "sample-theme" {
 		t.Fatalf("theme id = %q", instance.Site().Theme.ID)
+	}
+	if instance.Site().Manifest.ID != "sample-content" {
+		t.Fatalf("plugin id = %q", instance.Site().Manifest.ID)
+	}
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	instance.Site().Handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d", rec.Code)
 	}
 }
 

@@ -170,6 +170,36 @@ func TestRegistryRejectsThemeWithMissingRequiredPlugin(t *testing.T) {
 	}
 }
 
+func TestRegistryAcceptsThemeCompatibilityViaBasePlugin(t *testing.T) {
+	registry := NewRegistry()
+	registry.MustRegisterTheme(themeWithManifest{
+		manifest: ThemeManifest{
+			ID:               "default-news",
+			Name:             "Default News",
+			SupportedPlugins: []string{"news-content"},
+			RequiredPlugins:  []string{"news-content"},
+		},
+	})
+	registry.MustRegisterPlugin(pluginWithManifest{
+		manifest: PluginManifest{
+			ID:           "sample-content",
+			Name:         "Sample Content",
+			BasePlugin:   "news-content",
+			DefaultTheme: "default-news",
+		},
+		build: func(context.Context, Config, WebTheme) (*Site, error) {
+			return &Site{Handler: http.HandlerFunc(func(http.ResponseWriter, *http.Request) {})}, nil
+		},
+	})
+
+	if _, err := registry.Build(context.Background(), Config{
+		Plugin: "sample-content",
+		Theme:  "default-news",
+	}); err != nil {
+		t.Fatalf("build with base-plugin compatibility: %v", err)
+	}
+}
+
 type themeWithManifest struct {
 	manifest ThemeManifest
 }
@@ -200,5 +230,18 @@ func (p namedTestPluginValue) Manifest() PluginManifest {
 }
 
 func (p namedTestPluginValue) Build(ctx context.Context, cfg Config, theme WebTheme) (*Site, error) {
+	return p.build(ctx, cfg, theme)
+}
+
+type pluginWithManifest struct {
+	manifest PluginManifest
+	build    func(context.Context, Config, WebTheme) (*Site, error)
+}
+
+func (p pluginWithManifest) Manifest() PluginManifest {
+	return p.manifest
+}
+
+func (p pluginWithManifest) Build(ctx context.Context, cfg Config, theme WebTheme) (*Site, error) {
 	return p.build(ctx, cfg, theme)
 }

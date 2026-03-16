@@ -21,6 +21,7 @@ type PluginManifest struct {
 	Version      string `json:"version,omitempty"`
 	Kind         string `json:"plugin_kind,omitempty"`
 	Description  string `json:"description"`
+	BasePlugin   string `json:"base_plugin,omitempty"`
 	DefaultTheme string `json:"default_theme"`
 }
 
@@ -262,6 +263,10 @@ func (r *Registry) lookupPlugin(id string) (HTTPPlugin, PluginManifest, error) {
 	return plugin, plugin.Manifest(), nil
 }
 
+func (r *Registry) ResolvePlugin(id string) (HTTPPlugin, PluginManifest, error) {
+	return r.lookupPlugin(id)
+}
+
 func (r *Registry) lookupPlugins(cfg Config) ([]HTTPPlugin, []PluginManifest, error) {
 	ids := make([]string, 0, len(cfg.Plugins)+1)
 	for _, id := range cfg.Plugins {
@@ -384,10 +389,13 @@ func validateThemeCompatibility(plugin PluginManifest, theme ThemeManifest) erro
 	if len(theme.SupportedPlugins) == 0 {
 		return nil
 	}
-	pluginID := normalizeID(plugin.ID)
+	capabilities := pluginCapabilities(plugin)
 	for _, supported := range theme.SupportedPlugins {
-		if normalizeID(supported) == pluginID {
-			return nil
+		supported = normalizeID(supported)
+		for _, capability := range capabilities {
+			if supported == capability {
+				return nil
+			}
 		}
 	}
 	return fmt.Errorf("theme %q does not support plugin %q", theme.ID, plugin.ID)
@@ -399,7 +407,9 @@ func validateThemeRequirements(plugins []PluginManifest, theme ThemeManifest) er
 	}
 	selected := make(map[string]struct{}, len(plugins))
 	for _, plugin := range plugins {
-		selected[normalizeID(plugin.ID)] = struct{}{}
+		for _, capability := range pluginCapabilities(plugin) {
+			selected[capability] = struct{}{}
+		}
 	}
 	missing := make([]string, 0, len(theme.RequiredPlugins))
 	for _, required := range theme.RequiredPlugins {
@@ -417,6 +427,14 @@ func validateThemeRequirements(plugins []PluginManifest, theme ThemeManifest) er
 	}
 	sort.Strings(missing)
 	return fmt.Errorf("theme %q requires plugins: %s", theme.ID, strings.Join(missing, ", "))
+}
+
+func pluginCapabilities(plugin PluginManifest) []string {
+	out := []string{normalizeID(plugin.ID)}
+	if base := normalizeID(plugin.BasePlugin); base != "" && base != out[0] {
+		out = append(out, base)
+	}
+	return out
 }
 
 func mergeSites(sites []*Site, manifests []PluginManifest, theme ThemeManifest) (*Site, error) {

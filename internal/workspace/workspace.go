@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"aip2p.org/internal/apphost"
+	"aip2p.org/internal/plugins/directoryplugin"
 	"aip2p.org/internal/themes/directorytheme"
 )
 
@@ -17,6 +18,10 @@ type AppBundle struct {
 	ThemeManifests  []apphost.ThemeManifest
 	PluginManifests []apphost.PluginManifest
 	Themes          []directorytheme.Theme
+}
+
+type PluginResolver interface {
+	ResolvePlugin(id string) (apphost.HTTPPlugin, apphost.PluginManifest, error)
 }
 
 func LoadAppBundle(root string) (AppBundle, error) {
@@ -67,6 +72,44 @@ func LoadPluginManifestDir(root string) (apphost.PluginManifest, error) {
 		return apphost.PluginManifest{}, err
 	}
 	return apphost.LoadPluginManifestJSON(data)
+}
+
+func LoadPluginDir(root string, resolver PluginResolver) (apphost.HTTPPlugin, apphost.PluginManifest, error) {
+	plugin, err := directoryplugin.Load(root, resolver)
+	if err != nil {
+		return nil, apphost.PluginManifest{}, err
+	}
+	return plugin, plugin.Manifest(), nil
+}
+
+func LoadPlugins(root string, resolver PluginResolver) ([]apphost.HTTPPlugin, []apphost.PluginManifest, error) {
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil, nil
+		}
+		return nil, nil, err
+	}
+	plugins := make([]apphost.HTTPPlugin, 0, len(entries))
+	manifests := make([]apphost.PluginManifest, 0, len(entries))
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		plugin, manifest, err := LoadPluginDir(filepath.Join(root, entry.Name()), resolver)
+		if err != nil {
+			return nil, nil, err
+		}
+		plugins = append(plugins, plugin)
+		manifests = append(manifests, manifest)
+	}
+	sort.SliceStable(plugins, func(i, j int) bool {
+		return plugins[i].Manifest().ID < plugins[j].Manifest().ID
+	})
+	sort.Slice(manifests, func(i, j int) bool {
+		return manifests[i].ID < manifests[j].ID
+	})
+	return plugins, manifests, nil
 }
 
 func loadThemes(root string) ([]directorytheme.Theme, []apphost.ThemeManifest, error) {

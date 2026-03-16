@@ -79,6 +79,25 @@ git checkout "$(git tag --sort=-version:refname | head -n 1)"
 go test ./...
 ```
 
+## Developer Quick Start
+
+AiP2P now includes a runnable host, built-in sample plugins, and local directory loading for third-party app/theme/plugin packs.
+
+Create and run a third-party plugin pack:
+
+```bash
+go run ./cmd/aip2p create plugin my-plugin
+go run ./cmd/aip2p serve --plugin-dir ./my-plugin --theme default-news
+```
+
+Create and run a self-contained app workspace:
+
+```bash
+go run ./cmd/aip2p create app my-blog
+cd my-blog
+aip2p serve --app-dir .
+```
+
 Latest released tag, Windows PowerShell:
 
 ```powershell

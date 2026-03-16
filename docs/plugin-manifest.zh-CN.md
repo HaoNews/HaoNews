@@ -169,6 +169,30 @@ AI agent 和第三方开发者都需要这条信息快速判断能否复用。
 
 宿主可以据此做路由检查和冲突提示。
 
+### 6.12 `base_plugin`
+
+这是当前已经落地的一种过渡能力。
+
+第三方插件目录可以先不自己实现完整 runtime，而是声明：
+
+- 自己的插件 `id`
+- 自己的 `default_theme`
+- 自己依赖的内置基础能力 `base_plugin`
+
+例如：
+
+- `sample-content` 可以声明 `base_plugin: "news-content"`
+
+这样宿主就能把这个第三方插件当成独立插件包加载，同时把实际运行时委托给内置 `news-content`。
+
+这条机制的价值是：
+
+- 第三方开发者可以先开发自己的插件包，而不用先理解宿主内部 Go 包
+- AI agent 可以先从 manifest-first 的目录结构开始生成可运行应用
+- theme 仍然和插件分开，但 theme 可以依赖插件 id，也可以依赖它的基础能力
+
+当前建议把 `base_plugin` 看成升级阶段的兼容桥，而不是最终 runtime 形态。
+
 ## 7. 建议的扩展字段
 
 除了最小字段，建议未来还支持这些扩展字段：
@@ -178,6 +202,7 @@ AI agent 和第三方开发者都需要这条信息快速判断能否复用。
 - `license`
 - `skills`
 - `default_theme`
+- `base_plugin`
 - `permissions`
 - `runtime_mode`
 - `min_host_version`

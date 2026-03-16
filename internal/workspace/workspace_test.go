@@ -1,9 +1,15 @@
 package workspace
 
 import (
+	"context"
+	"html/template"
+	"io/fs"
+	"net/http"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"aip2p.org/internal/apphost"
 )
 
 func TestLoadAppBundle(t *testing.T) {
@@ -12,7 +18,7 @@ func TestLoadAppBundle(t *testing.T) {
 	writeFile(t, root, filepath.Join("themes", "sample-theme", "aip2p.theme.json"), "{\n  \"id\": \"sample-theme\",\n  \"name\": \"Sample Theme\",\n  \"supported_plugins\": [\"news-content\"],\n  \"required_plugins\": [\"news-content\"]\n}\n")
 	writeFile(t, root, filepath.Join("themes", "sample-theme", "templates", "home.html"), "home\n")
 	writeFile(t, root, filepath.Join("themes", "sample-theme", "static", "styles.css"), "body{}\n")
-	writeFile(t, root, filepath.Join("plugins", "sample-plugin", "aip2p.plugin.json"), "{\n  \"id\": \"sample-plugin\",\n  \"name\": \"Sample Plugin\",\n  \"default_theme\": \"sample-theme\"\n}\n")
+	writeFile(t, root, filepath.Join("plugins", "sample-plugin", "aip2p.plugin.json"), "{\n  \"id\": \"sample-plugin\",\n  \"name\": \"Sample Plugin\",\n  \"base_plugin\": \"news-content\",\n  \"default_theme\": \"sample-theme\"\n}\n")
 
 	bundle, err := LoadAppBundle(root)
 	if err != nil {
@@ -27,6 +33,53 @@ func TestLoadAppBundle(t *testing.T) {
 	if len(bundle.PluginManifests) != 1 || bundle.PluginManifests[0].ID != "sample-plugin" {
 		t.Fatalf("plugin manifests = %#v", bundle.PluginManifests)
 	}
+}
+
+func TestLoadPlugins(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, filepath.Join("plugins", "sample-plugin", "aip2p.plugin.json"), "{\n  \"id\": \"sample-plugin\",\n  \"name\": \"Sample Plugin\",\n  \"base_plugin\": \"news-content\",\n  \"default_theme\": \"default-news\"\n}\n")
+
+	plugins, manifests, err := LoadPlugins(filepath.Join(root, "plugins"), stubResolver{})
+	if err != nil {
+		t.Fatalf("load plugins: %v", err)
+	}
+	if len(plugins) != 1 || len(manifests) != 1 {
+		t.Fatalf("plugins/manifests = %d/%d", len(plugins), len(manifests))
+	}
+	if manifests[0].BasePlugin != "news-content" {
+		t.Fatalf("base plugin = %q", manifests[0].BasePlugin)
+	}
+}
+
+type stubResolver struct{}
+
+func (stubResolver) ResolvePlugin(id string) (apphost.HTTPPlugin, apphost.PluginManifest, error) {
+	plugin := stubPlugin{}
+	return plugin, plugin.Manifest(), nil
+}
+
+type stubPlugin struct{}
+
+func (stubPlugin) Manifest() apphost.PluginManifest {
+	return apphost.PluginManifest{ID: "news-content", Name: "News Content", DefaultTheme: "default-news"}
+}
+
+func (stubPlugin) Build(context.Context, apphost.Config, apphost.WebTheme) (*apphost.Site, error) {
+	return &apphost.Site{Handler: http.HandlerFunc(func(http.ResponseWriter, *http.Request) {})}, nil
+}
+
+type stubTheme struct{}
+
+func (stubTheme) Manifest() apphost.ThemeManifest {
+	return apphost.ThemeManifest{ID: "default-news", Name: "Default News"}
+}
+
+func (stubTheme) ParseTemplates(template.FuncMap) (*template.Template, error) {
+	return template.New("test"), nil
+}
+
+func (stubTheme) StaticFS() (fs.FS, error) {
+	return nil, nil
 }
 
 func writeFile(t *testing.T, root, rel, content string) {

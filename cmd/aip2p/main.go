@@ -201,6 +201,7 @@ func runServe(args []string) error {
 	appDir := fs.String("app-dir", "", "application directory containing aip2p.app.json and optional themes/plugins folders")
 	pluginID := fs.String("plugin", "", "single built-in plugin id; ignored when --plugins is set")
 	pluginsCSV := fs.String("plugins", "", "comma-separated built-in plugin ids to compose; overrides --plugin")
+	pluginDirsCSV := fs.String("plugin-dir", "", "comma-separated external plugin directories containing aip2p.plugin.json")
 	themeID := fs.String("theme", "", "theme id; defaults to the plugin default theme")
 	themeDir := fs.String("theme-dir", "", "directory theme override; expects aip2p.theme.json plus templates/static")
 	project := fs.String("project", "", "project id override")
@@ -227,6 +228,7 @@ func runServe(args []string) error {
 		AppDir:           *appDir,
 		Plugin:           *pluginID,
 		Plugins:          splitCSV(*pluginsCSV),
+		PluginDirs:       splitCSV(*pluginDirsCSV),
 		Theme:            *themeID,
 		ThemeDir:         *themeDir,
 		Project:          *project,

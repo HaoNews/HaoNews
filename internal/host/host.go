@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -19,6 +20,7 @@ type Config struct {
 	App              string
 	Plugin           string
 	Plugins          []string
+	PluginDirs       []string
 	Theme            string
 	ThemeDir         string
 	AppDir           string
@@ -81,6 +83,29 @@ func New(ctx context.Context, cfg Config) (*Instance, error) {
 		}
 	}
 	registry := builtin.DefaultRegistry()
+	loadedPluginIDs := make([]string, 0)
+	if appDirExplicit {
+		plugins, manifests, err := workspace.LoadPlugins(filepath.Join(bundle.Root, "plugins"), registry)
+		if err != nil {
+			return nil, err
+		}
+		for idx, plugin := range plugins {
+			if err := registry.RegisterPlugin(plugin); err != nil {
+				return nil, err
+			}
+			loadedPluginIDs = append(loadedPluginIDs, manifests[idx].ID)
+		}
+	}
+	for _, dir := range cfg.PluginDirs {
+		plugin, manifest, err := workspace.LoadPluginDir(dir, registry)
+		if err != nil {
+			return nil, err
+		}
+		if err := registry.RegisterPlugin(plugin); err != nil {
+			return nil, err
+		}
+		loadedPluginIDs = append(loadedPluginIDs, manifest.ID)
+	}
 	for _, theme := range bundle.Themes {
 		if err := registry.RegisterTheme(theme); err != nil {
 			return nil, err
@@ -97,6 +122,9 @@ func New(ctx context.Context, cfg Config) (*Instance, error) {
 		if !themeExplicit {
 			cfg.Theme = theme.Manifest().ID
 		}
+	}
+	if len(cfg.Plugins) == 0 && strings.TrimSpace(cfg.Plugin) == "" && strings.TrimSpace(cfg.App) == "" && len(loadedPluginIDs) > 0 {
+		cfg.Plugins = append([]string(nil), loadedPluginIDs...)
 	}
 	site, err := registry.Build(ctx, apphost.Config{
 		Plugin:           cfg.Plugin,
@@ -160,7 +188,7 @@ func (i *Instance) Site() *apphost.Site {
 }
 
 func normalizeConfig(cfg Config) Config {
-	if strings.TrimSpace(cfg.AppDir) == "" && strings.TrimSpace(cfg.App) == "" && len(cfg.Plugins) == 0 && strings.TrimSpace(cfg.Plugin) == "" {
+	if strings.TrimSpace(cfg.AppDir) == "" && strings.TrimSpace(cfg.App) == "" && len(cfg.Plugins) == 0 && strings.TrimSpace(cfg.Plugin) == "" && len(cfg.PluginDirs) == 0 {
 		cfg.App = "default-news"
 	}
 	if strings.TrimSpace(cfg.ListenAddr) == "" {
