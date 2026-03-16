@@ -124,6 +124,54 @@ func TestRegistryBuildsCompositeSite(t *testing.T) {
 	}
 }
 
+func TestRegistryScopesRuntimePathsPerPlugin(t *testing.T) {
+	registry := NewRegistry()
+	registry.MustRegisterTheme(themeWithManifest{
+		manifest: ThemeManifest{
+			ID:               "test-theme",
+			Name:             "Test Theme",
+			SupportedPlugins: []string{"first-plugin", "second-plugin"},
+		},
+	})
+	var firstCfg, secondCfg Config
+	registry.MustRegisterPlugin(namedTestPlugin("first-plugin", func(_ context.Context, cfg Config, _ WebTheme) (*Site, error) {
+		firstCfg = cfg
+		return &Site{Handler: http.HandlerFunc(func(http.ResponseWriter, *http.Request) {})}, nil
+	}))
+	registry.MustRegisterPlugin(namedTestPlugin("second-plugin", func(_ context.Context, cfg Config, _ WebTheme) (*Site, error) {
+		secondCfg = cfg
+		return &Site{Handler: http.HandlerFunc(func(http.ResponseWriter, *http.Request) {})}, nil
+	}))
+
+	_, err := registry.Build(context.Background(), Config{
+		Plugins:          []string{"first-plugin", "second-plugin"},
+		Theme:            "test-theme",
+		RuntimeRoot:      "/tmp/runtime",
+		StoreRoot:        "/tmp/store",
+		ArchiveRoot:      "/tmp/archive",
+		RulesPath:        "/tmp/config/subscriptions.json",
+		WriterPolicyPath: "/tmp/config/writer_policy.json",
+		NetPath:          "/tmp/config/aip2p_net.inf",
+		TrackerPath:      "/tmp/config/Trackerlist.inf",
+	})
+	if err != nil {
+		t.Fatalf("build composite site: %v", err)
+	}
+
+	if firstCfg.RuntimeRoot != "/tmp/runtime/plugins/first-plugin" {
+		t.Fatalf("first runtime root = %q", firstCfg.RuntimeRoot)
+	}
+	if secondCfg.RuntimeRoot != "/tmp/runtime/plugins/second-plugin" {
+		t.Fatalf("second runtime root = %q", secondCfg.RuntimeRoot)
+	}
+	if firstCfg.StoreRoot != "/tmp/store/first-plugin" || secondCfg.StoreRoot != "/tmp/store/second-plugin" {
+		t.Fatalf("store roots = %q / %q", firstCfg.StoreRoot, secondCfg.StoreRoot)
+	}
+	if firstCfg.RulesPath != "/tmp/config/first-plugin/subscriptions.json" || secondCfg.RulesPath != "/tmp/config/second-plugin/subscriptions.json" {
+		t.Fatalf("rules paths = %q / %q", firstCfg.RulesPath, secondCfg.RulesPath)
+	}
+}
+
 func TestRegistryRejectsIncompatibleTheme(t *testing.T) {
 	registry := NewRegistry()
 	registry.MustRegisterTheme(testTheme{})

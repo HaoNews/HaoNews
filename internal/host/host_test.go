@@ -56,6 +56,32 @@ func TestNewLoadsAppDirTheme(t *testing.T) {
 	}
 }
 
+func TestNewDefaultsAppDirRuntimeRoot(t *testing.T) {
+	root := t.TempDir()
+	writeHostFile(t, root, "aip2p.app.json", "{\n  \"id\": \"sample-news\",\n  \"name\": \"Sample News\",\n  \"plugins\": [\"sample-content\"],\n  \"theme\": \"sample-theme\"\n}\n")
+	writeHostFile(t, root, filepath.Join("plugins", "sample-content", "aip2p.plugin.json"), "{\n  \"id\": \"sample-content\",\n  \"name\": \"Sample Content\",\n  \"base_plugin\": \"news-content\",\n  \"default_theme\": \"sample-theme\"\n}\n")
+	writeHostFile(t, root, filepath.Join("themes", "sample-theme", "aip2p.theme.json"), "{\n  \"id\": \"sample-theme\",\n  \"name\": \"Sample Theme\",\n  \"supported_plugins\": [\"sample-content\"],\n  \"required_plugins\": [\"sample-content\"]\n}\n")
+	writeHostFile(t, root, filepath.Join("themes", "sample-theme", "templates", "home.html"), "home\n")
+	writeHostFile(t, root, filepath.Join("themes", "sample-theme", "templates", "post.html"), "post\n")
+	writeHostFile(t, root, filepath.Join("themes", "sample-theme", "templates", "directory.html"), "directory\n")
+	writeHostFile(t, root, filepath.Join("themes", "sample-theme", "templates", "collection.html"), "collection\n")
+	writeHostFile(t, root, filepath.Join("themes", "sample-theme", "templates", "network.html"), "network\n")
+	writeHostFile(t, root, filepath.Join("themes", "sample-theme", "templates", "archive_index.html"), "archive-index\n")
+	writeHostFile(t, root, filepath.Join("themes", "sample-theme", "templates", "archive_day.html"), "archive-day\n")
+	writeHostFile(t, root, filepath.Join("themes", "sample-theme", "templates", "archive_message.html"), "archive-message\n")
+	writeHostFile(t, root, filepath.Join("themes", "sample-theme", "templates", "writer_policy.html"), "writer-policy\n")
+	writeHostFile(t, root, filepath.Join("themes", "sample-theme", "templates", "partials.html"), "{{/* */}}\n")
+	writeHostFile(t, root, filepath.Join("themes", "sample-theme", "static", "styles.css"), "body{}\n")
+
+	instance, err := New(context.Background(), Config{AppDir: root})
+	if err != nil {
+		t.Fatalf("new host: %v", err)
+	}
+	if instance.config.RuntimeRoot != filepath.Join(root, "runtime") {
+		t.Fatalf("runtime root = %q", instance.config.RuntimeRoot)
+	}
+}
+
 func writeHostFile(t *testing.T, root, rel, content string) {
 	t.Helper()
 	path := filepath.Join(root, rel)

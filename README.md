@@ -108,6 +108,8 @@ Optional app workspace config:
 
 - `aip2p.app.config.json`
 
+In workspace mode, AiP2P now scopes `runtime`, `store`, `archive`, and related config files per plugin instance so app-local plugin packs do not share one mutable state directory.
+
 Latest released tag, Windows PowerShell:
 
 ```powershell

@@ -10,6 +10,7 @@ import (
 	"io/fs"
 	"log"
 	"net/http"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -209,6 +210,7 @@ func (r *Registry) Build(ctx context.Context, cfg Config) (*Site, error) {
 		if len(cfg.PluginConfigs) > 0 {
 			pluginCfg.PluginConfig = cfg.PluginConfigs[manifests[idx].ID]
 		}
+		pluginCfg = scopeConfigForPlugin(pluginCfg, manifests[idx])
 		site, err := buildPlugin(ctx, plugin, pluginCfg, theme)
 		if err != nil {
 			return nil, err
@@ -550,4 +552,38 @@ func sortedKeys[T any](value map[string]T) []string {
 	}
 	sort.Strings(keys)
 	return keys
+}
+
+func scopeConfigForPlugin(cfg Config, manifest PluginManifest) Config {
+	scope := normalizeID(manifest.ID)
+	if scope == "" {
+		return cfg
+	}
+	cfg.RuntimeRoot = scopeDir(cfg.RuntimeRoot, scope, true)
+	cfg.StoreRoot = scopeDir(cfg.StoreRoot, scope, false)
+	cfg.ArchiveRoot = scopeDir(cfg.ArchiveRoot, scope, false)
+	cfg.RulesPath = scopeFile(cfg.RulesPath, scope)
+	cfg.WriterPolicyPath = scopeFile(cfg.WriterPolicyPath, scope)
+	cfg.NetPath = scopeFile(cfg.NetPath, scope)
+	cfg.TrackerPath = scopeFile(cfg.TrackerPath, scope)
+	return cfg
+}
+
+func scopeDir(root, scope string, nestedPlugins bool) string {
+	root = strings.TrimSpace(root)
+	if root == "" {
+		return ""
+	}
+	if nestedPlugins {
+		return filepath.Join(root, "plugins", scope)
+	}
+	return filepath.Join(root, scope)
+}
+
+func scopeFile(path, scope string) string {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return ""
+	}
+	return filepath.Join(filepath.Dir(path), scope, filepath.Base(path))
 }

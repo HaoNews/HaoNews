@@ -58,6 +58,9 @@ func New(ctx context.Context, cfg Config) (*Instance, error) {
 		if err != nil {
 			return nil, err
 		}
+		if strings.TrimSpace(cfg.RuntimeRoot) == "" && strings.TrimSpace(bundle.Config.RuntimeRoot) == "" {
+			cfg.RuntimeRoot = filepath.Join(bundle.Root, "runtime")
+		}
 		cfg, err = applyAppBundleConfig(cfg, bundle.Config)
 		if err != nil {
 			return nil, err
