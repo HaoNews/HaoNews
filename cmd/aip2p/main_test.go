@@ -4,7 +4,11 @@ import (
 	"flag"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
+
+	"aip2p.org/internal/aip2p"
 )
 
 func TestResolveCreateTargetUsesPathAsOutput(t *testing.T) {
@@ -84,6 +88,128 @@ func TestParseFlagSetInterspersedKeepsPositionalArgs(t *testing.T) {
 	}
 	if fs.NArg() != 1 || fs.Arg(0) != "sample-app" {
 		t.Fatalf("args = %#v", fs.Args())
+	}
+}
+
+func TestRunPublishRequiresIdentityFile(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	store := filepath.Join(root, "store")
+	if _, err := aip2p.OpenStore(store); err != nil {
+		t.Fatalf("OpenStore error = %v", err)
+	}
+	err := run([]string{
+		"publish",
+		"--store", store,
+		"--author", "agent://demo/alice",
+		"--title", "unsigned",
+		"--body", "hello world",
+	})
+	if err == nil {
+		t.Fatal("expected identity-file error")
+	}
+	if !strings.Contains(err.Error(), "identity-file is required") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestDefaultIdentityOutputPathUsesRuntimeIdentityDirectory(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	got, err := defaultIdentityOutputPath("agent://news/publisher-01", "")
+	if err != nil {
+		t.Fatalf("defaultIdentityOutputPath error = %v", err)
+	}
+	want := filepath.Join(home, ".aip2p-news", "identities", "agent-news-publisher-01.json")
+	if got != want {
+		t.Fatalf("output path = %q, want %q", got, want)
+	}
+}
+
+func TestSanitizeAgentIDForFilename(t *testing.T) {
+	t.Parallel()
+
+	got := sanitizeAgentIDForFilename(" agent://news/publisher-01 ")
+	if got != "agent-news-publisher-01" {
+		t.Fatalf("sanitizeAgentIDForFilename = %q", got)
+	}
+}
+
+func TestRunIdentityInitCreatesIdentityFile(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	output := filepath.Join(root, "publisher.identity.json")
+	if err := run([]string{
+		"identity",
+		"init",
+		"--agent-id", "agent://news/publisher-01",
+		"--author", "agent://demo/alice",
+		"--out", output,
+	}); err != nil {
+		t.Fatalf("run(identity init) error = %v", err)
+	}
+	identity, err := aip2p.LoadAgentIdentity(output)
+	if err != nil {
+		t.Fatalf("LoadAgentIdentity error = %v", err)
+	}
+	if identity.AgentID != "agent://news/publisher-01" {
+		t.Fatalf("agent_id = %q", identity.AgentID)
+	}
+	if identity.Author != "agent://demo/alice" {
+		t.Fatalf("author = %q", identity.Author)
+	}
+	if identity.KeyType != aip2p.KeyTypeEd25519 {
+		t.Fatalf("key_type = %q", identity.KeyType)
+	}
+}
+
+func TestRunPublishWritesSignedMessage(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	store := filepath.Join(root, "store")
+	if _, err := aip2p.OpenStore(store); err != nil {
+		t.Fatalf("OpenStore error = %v", err)
+	}
+	identity, err := aip2p.NewAgentIdentity("agent://news/world-01", "agent://demo/alice", time.Now().UTC())
+	if err != nil {
+		t.Fatalf("NewAgentIdentity error = %v", err)
+	}
+	identityPath := filepath.Join(root, "identity.json")
+	if err := aip2p.SaveAgentIdentity(identityPath, identity); err != nil {
+		t.Fatalf("SaveAgentIdentity error = %v", err)
+	}
+	if err := run([]string{
+		"publish",
+		"--store", store,
+		"--identity-file", identityPath,
+		"--kind", "post",
+		"--channel", "aip2p.news/world",
+		"--title", "Signed post",
+		"--body", "hello signed world",
+		"--extensions-json", `{"project":"aip2p.news"}`,
+	}); err != nil {
+		t.Fatalf("run(publish) error = %v", err)
+	}
+	entries, err := os.ReadDir(filepath.Join(store, "data"))
+	if err != nil {
+		t.Fatalf("ReadDir error = %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("content dirs = %d, want 1", len(entries))
+	}
+	msg, _, err := aip2p.LoadMessage(filepath.Join(store, "data", entries[0].Name()))
+	if err != nil {
+		t.Fatalf("LoadMessage error = %v", err)
+	}
+	if msg.Origin == nil {
+		t.Fatal("expected signed origin")
+	}
+	if msg.Origin.AgentID != identity.AgentID {
+		t.Fatalf("origin.agent_id = %q, want %q", msg.Origin.AgentID, identity.AgentID)
 	}
 }
 

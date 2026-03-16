@@ -28,12 +28,21 @@ type Message struct {
 	BodySHA256 string         `json:"body_sha256"`
 	ReplyTo    *MessageLink   `json:"reply_to,omitempty"`
 	Tags       []string       `json:"tags,omitempty"`
+	Origin     *MessageOrigin `json:"origin,omitempty"`
 	Extensions map[string]any `json:"extensions,omitempty"`
 }
 
 type MessageLink struct {
 	InfoHash string `json:"infohash,omitempty"`
 	Magnet   string `json:"magnet,omitempty"`
+}
+
+type MessageOrigin struct {
+	Author    string `json:"author"`
+	AgentID   string `json:"agent_id"`
+	KeyType   string `json:"key_type"`
+	PublicKey string `json:"public_key"`
+	Signature string `json:"signature"`
 }
 
 type MessageInput struct {
@@ -44,6 +53,7 @@ type MessageInput struct {
 	Body       string
 	ReplyTo    *MessageLink
 	Tags       []string
+	Identity   *AgentIdentity
 	Extensions map[string]any
 	CreatedAt  time.Time
 }
@@ -79,9 +89,16 @@ func BuildMessage(in MessageInput) (Message, []byte, error) {
 		Title:      strings.TrimSpace(in.Title),
 		BodyFile:   BodyFileName,
 		BodySHA256: hex.EncodeToString(sum[:]),
-		ReplyTo:    in.ReplyTo,
+		ReplyTo:    canonicalMessageLink(in.ReplyTo),
 		Tags:       cleanTags(in.Tags),
 		Extensions: cloneMap(in.Extensions),
+	}
+	if in.Identity != nil {
+		origin, err := BuildSignedOrigin(msg, *in.Identity)
+		if err != nil {
+			return Message{}, nil, err
+		}
+		msg.Origin = origin
 	}
 	return msg, bodyBytes, nil
 }
@@ -138,6 +155,9 @@ func ValidateMessage(msg Message, body []byte) error {
 	sum := sha256.Sum256(body)
 	if hex.EncodeToString(sum[:]) != msg.BodySHA256 {
 		return errors.New("body_sha256 mismatch")
+	}
+	if err := ValidateMessageOrigin(msg); err != nil {
+		return err
 	}
 	return nil
 }
