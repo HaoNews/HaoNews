@@ -6,11 +6,11 @@ import (
 	"strings"
 
 	"aip2p.org/internal/apphost"
-	newsarchive "aip2p.org/internal/plugins/newsarchive"
-	newscontent "aip2p.org/internal/plugins/newscontent"
-	newsgovernance "aip2p.org/internal/plugins/newsgovernance"
-	newsops "aip2p.org/internal/plugins/newsops"
-	"aip2p.org/internal/themes/defaultnews"
+	newsdemoarchive "aip2p.org/internal/plugins/newsdemoarchive"
+	newsdemocontent "aip2p.org/internal/plugins/newsdemocontent"
+	newsdemogovernance "aip2p.org/internal/plugins/newsdemogovernance"
+	newsdemoops "aip2p.org/internal/plugins/newsdemoops"
+	"aip2p.org/internal/themes/newsdemo"
 )
 
 //go:embed news-demo.app.json
@@ -18,11 +18,11 @@ var newsDemoAppJSON []byte
 
 func DefaultRegistry() *apphost.Registry {
 	registry := apphost.NewRegistry()
-	registry.MustRegisterTheme(defaultnews.Theme{})
-	registry.MustRegisterPlugin(newscontent.Plugin{})
-	registry.MustRegisterPlugin(newsarchive.Plugin{})
-	registry.MustRegisterPlugin(newsgovernance.Plugin{})
-	registry.MustRegisterPlugin(newsops.Plugin{})
+	registry.MustRegisterTheme(newsdemo.Theme{})
+	registry.MustRegisterPlugin(newsdemocontent.Plugin{})
+	registry.MustRegisterPlugin(newsdemoarchive.Plugin{})
+	registry.MustRegisterPlugin(newsdemogovernance.Plugin{})
+	registry.MustRegisterPlugin(newsdemoops.Plugin{})
 	return registry
 }
 

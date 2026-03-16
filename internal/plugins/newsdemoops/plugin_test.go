@@ -1,4 +1,4 @@
-package newsops
+package newsdemoops
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"aip2p.org/internal/apphost"
-	"aip2p.org/internal/themes/defaultnews"
+	"aip2p.org/internal/themes/newsdemo"
 )
 
 func TestPluginBuildServesNetworkPage(t *testing.T) {
@@ -53,7 +53,7 @@ func buildOpsSite(t *testing.T) *apphost.Site {
 		Project:          "aip2p.news",
 		Version:          "test",
 	}
-	site, err := Plugin{}.Build(context.Background(), cfg, defaultnews.Theme{})
+	site, err := Plugin{}.Build(context.Background(), cfg, newsdemo.Theme{})
 	if err != nil {
 		t.Fatalf("Build() error = %v", err)
 	}

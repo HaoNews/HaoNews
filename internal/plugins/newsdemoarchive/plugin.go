@@ -1,11 +1,11 @@
-package newsarchive
+package newsdemoarchive
 
 import (
 	"context"
 	_ "embed"
 
 	"aip2p.org/internal/apphost"
-	newsplugin "aip2p.org/internal/plugins/news"
+	newsplugin "aip2p.org/internal/plugins/newsdemo"
 )
 
 type Plugin struct{}

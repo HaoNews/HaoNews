@@ -1,11 +1,11 @@
-package newsops
+package newsdemocontent
 
 import (
 	"context"
 	_ "embed"
 
 	"aip2p.org/internal/apphost"
-	newsplugin "aip2p.org/internal/plugins/news"
+	newsplugin "aip2p.org/internal/plugins/newsdemo"
 )
 
 type Plugin struct{}
@@ -28,7 +28,7 @@ func (Plugin) Build(_ context.Context, cfg apphost.Config, theme apphost.WebThem
 		cfg.WriterPolicyPath,
 		cfg.NetPath,
 		theme,
-		newsplugin.OpsOnlyAppOptions(),
+		newsplugin.ContentOnlyAppOptions(),
 	)
 	if err != nil {
 		return nil, err

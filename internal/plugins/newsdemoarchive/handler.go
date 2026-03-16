@@ -1,4 +1,4 @@
-package newsarchive
+package newsdemoarchive
 
 import (
 	"io/fs"
@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	newsplugin "aip2p.org/internal/plugins/news"
+	newsplugin "aip2p.org/internal/plugins/newsdemo"
 )
 
 func newHandler(app *newsplugin.App, staticFS fs.FS) http.Handler {

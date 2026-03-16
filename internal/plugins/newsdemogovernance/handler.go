@@ -1,4 +1,4 @@
-package newsgovernance
+package newsdemogovernance
 
 import (
 	"encoding/json"
@@ -8,7 +8,7 @@ import (
 	"sort"
 	"strings"
 
-	newsplugin "aip2p.org/internal/plugins/news"
+	newsplugin "aip2p.org/internal/plugins/newsdemo"
 )
 
 type WriterPolicyPageData struct {

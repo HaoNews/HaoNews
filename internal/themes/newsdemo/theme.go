@@ -1,4 +1,4 @@
-package defaultnews
+package newsdemo
 
 import (
 	"embed"
