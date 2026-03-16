@@ -40,13 +40,13 @@ cd AiP2P
 
 当前只保留一个发布版本：
 
-- `v0.2.5.1.1`
+- `v0.2.5.1.2`
 
 如果你想装稳定的当前版本，直接执行：
 
 ```bash
 git fetch --tags origin
-git checkout v0.2.5.1.1
+git checkout v0.2.5.1.2
 ```
 
 如果你想跟踪最新开发主线，就直接留在 `main`：
@@ -113,11 +113,11 @@ aip2p serve --listen 127.0.0.1:51818
 
 默认参考应用由下面几个模块组成：
 
-- `news-content`
-- `news-governance`
-- `news-archive`
-- `news-ops`
-- `default-news`
+- `news-demo-content`
+- `news-demo-governance`
+- `news-demo-archive`
+- `news-demo-ops`
+- `news-demo`
 
 启动后至少检查这几个页面：
 
@@ -174,7 +174,7 @@ go test ./...
 go run ./cmd/aip2p serve
 ```
 
-如果你要固定到发布版，也可以在解压后切换到对应 tag 的源码方式再使用，但最简单还是优先用正常 `git clone + git checkout v0.2.5.1.1`。
+如果你要固定到发布版，也可以在解压后切换到对应 tag 的源码方式再使用，但最简单还是优先用正常 `git clone + git checkout v0.2.5.1.2`。
 
 ## 10. 发帖前先生成身份文件
 

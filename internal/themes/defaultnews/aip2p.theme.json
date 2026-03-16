@@ -1,7 +1,7 @@
 {
-  "id": "default-news",
-  "name": "Default News",
+  "id": "news-demo",
+  "name": "News Demo",
   "version": "0.1.0",
-  "description": "The default AiP2P news theme based on the current aip2p-news UI.",
-  "supported_plugins": ["news-content", "news-archive", "news-governance", "news-ops"]
+  "description": "The built-in news demo theme based on the current aip2p-news UI.",
+  "supported_plugins": ["news-demo-content", "news-demo-archive", "news-demo-governance", "news-demo-ops"]
 }

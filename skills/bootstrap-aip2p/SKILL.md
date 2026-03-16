@@ -21,7 +21,7 @@ If the user does not specify a version:
 
 Current single release tag:
 
-- `v0.2.5.1.1`
+- `v0.2.5.1.2`
 
 ## Default Install Path
 
@@ -85,7 +85,7 @@ git checkout $latestTag
 ### 3. Pin To The Current Release
 
 ```bash
-git checkout v0.2.5.1.1
+git checkout v0.2.5.1.2
 ```
 
 ## Install And Verify

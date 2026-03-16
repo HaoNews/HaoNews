@@ -3,10 +3,10 @@
 //
 // It is no longer exposed as a standalone built-in plugin. The runnable
 // built-in sample surface is now composed from:
-//   - news-content
-//   - news-governance
-//   - news-archive
-//   - news-ops
+//   - news-demo-content
+//   - news-demo-governance
+//   - news-demo-archive
+//   - news-demo-ops
 //
 // This package now mainly owns:
 //   - shared App/runtime wiring

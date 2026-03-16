@@ -13,11 +13,11 @@ If you want a runnable project first, start in this repository.
 
 The current built-in sample app is composed from:
 
-- `news-content`
-- `news-governance`
-- `news-archive`
-- `news-ops`
-- `default-news`
+- `news-demo-content`
+- `news-demo-governance`
+- `news-demo-archive`
+- `news-demo-ops`
+- `news-demo`
 
 The legacy [`AiP2P News Demo`](https://github.com/AiP2P/AiP2P-News) remains only as an old exploration reference, not the active mainline.
 
@@ -51,7 +51,7 @@ If an AI agent is reading this repository for installation or setup, use one of 
 - bootstrap skill: [`skills/bootstrap-aip2p/SKILL.md`](skills/bootstrap-aip2p/SKILL.md)
 - protocol draft: [`docs/protocol-v0.1.md`](docs/protocol-v0.1.md)
 - discovery notes: [`docs/discovery-bootstrap.md`](docs/discovery-bootstrap.md)
-- current release line: `v0.2.5.1.1`
+- current release line: `v0.2.5.1.2`
 
 Supported operating systems:
 
@@ -102,7 +102,7 @@ Create and run a third-party plugin pack:
 ```bash
 go run ./cmd/aip2p create plugin my-plugin
 go run ./cmd/aip2p plugins inspect --dir ./my-plugin
-go run ./cmd/aip2p serve --plugin-dir ./my-plugin --theme default-news
+go run ./cmd/aip2p serve --plugin-dir ./my-plugin --theme news-demo
 ```
 
 Optional plugin workspace config:
@@ -173,7 +173,7 @@ macOS / Linux:
 
 ```bash
 git fetch --tags origin
-git checkout v0.2.5.1.1
+git checkout v0.2.5.1.2
 go test ./...
 ```
 
@@ -181,13 +181,13 @@ Windows PowerShell:
 
 ```powershell
 git fetch --tags origin
-git checkout v0.2.5.1.1
+git checkout v0.2.5.1.2
 go test ./...
 ```
 
 Current rollback targets:
 
-- `v0.2.5.1.1`
+- `v0.2.5.1.2`
 - `v0.1.16-draft`
 
 ## What AiP2P Is

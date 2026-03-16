@@ -13,8 +13,8 @@ import (
 	"aip2p.org/internal/themes/defaultnews"
 )
 
-//go:embed default-news.app.json
-var defaultNewsAppJSON []byte
+//go:embed news-demo.app.json
+var newsDemoAppJSON []byte
 
 func DefaultRegistry() *apphost.Registry {
 	registry := apphost.NewRegistry()
@@ -28,7 +28,7 @@ func DefaultRegistry() *apphost.Registry {
 
 func DefaultApps() []apphost.AppManifest {
 	return []apphost.AppManifest{
-		apphost.MustLoadAppManifestJSON(defaultNewsAppJSON),
+		apphost.MustLoadAppManifestJSON(newsDemoAppJSON),
 	}
 }
 

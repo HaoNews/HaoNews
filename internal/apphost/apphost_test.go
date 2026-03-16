@@ -222,18 +222,18 @@ func TestRegistryAcceptsThemeCompatibilityViaBasePlugin(t *testing.T) {
 	registry := NewRegistry()
 	registry.MustRegisterTheme(themeWithManifest{
 		manifest: ThemeManifest{
-			ID:               "default-news",
+			ID:               "news-demo",
 			Name:             "Default News",
-			SupportedPlugins: []string{"news-content"},
-			RequiredPlugins:  []string{"news-content"},
+			SupportedPlugins: []string{"news-demo-content"},
+			RequiredPlugins:  []string{"news-demo-content"},
 		},
 	})
 	registry.MustRegisterPlugin(pluginWithManifest{
 		manifest: PluginManifest{
 			ID:           "sample-content",
 			Name:         "Sample Content",
-			BasePlugin:   "news-content",
-			DefaultTheme: "default-news",
+			BasePlugin:   "news-demo-content",
+			DefaultTheme: "news-demo",
 		},
 		build: func(context.Context, Config, WebTheme) (*Site, error) {
 			return &Site{Handler: http.HandlerFunc(func(http.ResponseWriter, *http.Request) {})}, nil
@@ -242,7 +242,7 @@ func TestRegistryAcceptsThemeCompatibilityViaBasePlugin(t *testing.T) {
 
 	if _, err := registry.Build(context.Background(), Config{
 		Plugin: "sample-content",
-		Theme:  "default-news",
+		Theme:  "news-demo",
 	}); err != nil {
 		t.Fatalf("build with base-plugin compatibility: %v", err)
 	}

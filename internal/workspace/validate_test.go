@@ -14,14 +14,14 @@ func TestValidatePluginManifest(t *testing.T) {
 	manifest := apphost.PluginManifest{
 		ID:           "sample-content",
 		Name:         "Sample Content",
-		BasePlugin:   "news-content",
-		DefaultTheme: "default-news",
+		BasePlugin:   "news-demo-content",
+		DefaultTheme: "news-demo",
 	}
 	report, err := ValidatePluginManifest(manifest, stubResolver{})
 	if err != nil {
 		t.Fatalf("validate plugin manifest: %v", err)
 	}
-	if report.Base == nil || report.Base.ID != "news-content" {
+	if report.Base == nil || report.Base.ID != "news-demo-content" {
 		t.Fatalf("base manifest = %#v", report.Base)
 	}
 }
@@ -33,7 +33,7 @@ func TestValidateAppBundle(t *testing.T) {
 			ID:      "sample-app",
 			Name:    "Sample App",
 			Plugins: []string{"sample-content"},
-			Theme:   "default-news",
+			Theme:   "news-demo",
 		},
 		Config: AppConfig{
 			Project: "sample.project",
@@ -49,21 +49,21 @@ func TestValidateAppBundle(t *testing.T) {
 	}
 	registry := apphost.NewRegistry()
 	registry.MustRegisterPlugin(pluginWithManifest(apphost.PluginManifest{
-		ID:           "news-content",
+		ID:           "news-demo-content",
 		Name:         "News Content",
-		DefaultTheme: "default-news",
+		DefaultTheme: "news-demo",
 	}))
 	registry.MustRegisterPlugin(pluginWithManifest(apphost.PluginManifest{
 		ID:           "sample-content",
 		Name:         "Sample Content",
-		BasePlugin:   "news-content",
-		DefaultTheme: "default-news",
+		BasePlugin:   "news-demo-content",
+		DefaultTheme: "news-demo",
 	}))
 	registry.MustRegisterTheme(themeWithManifest(apphost.ThemeManifest{
-		ID:               "default-news",
+		ID:               "news-demo",
 		Name:             "Default News",
-		SupportedPlugins: []string{"news-content"},
-		RequiredPlugins:  []string{"news-content"},
+		SupportedPlugins: []string{"news-demo-content"},
+		RequiredPlugins:  []string{"news-demo-content"},
 	}))
 
 	report, err := ValidateAppBundle(bundle, registry, registry)
@@ -73,7 +73,7 @@ func TestValidateAppBundle(t *testing.T) {
 	if !report.Valid {
 		t.Fatalf("valid = false")
 	}
-	if len(report.Plugins) != 1 || report.Plugins[0].Base == nil || report.Plugins[0].Base.ID != "news-content" {
+	if len(report.Plugins) != 1 || report.Plugins[0].Base == nil || report.Plugins[0].Base.ID != "news-demo-content" {
 		t.Fatalf("plugins = %#v", report.Plugins)
 	}
 	if report.Config.Project != "sample.project" {
