@@ -48,25 +48,6 @@ type AppOptions struct {
 	WriterPolicyRoutes bool
 }
 
-func FullAppOptions() AppOptions {
-	return AppOptions{
-		ContentRoutes:      true,
-		ContentAPIRoutes:   true,
-		ArchiveRoutes:      true,
-		HistoryAPIRoutes:   true,
-		NetworkRoutes:      true,
-		NetworkAPIRoutes:   true,
-		WriterPolicyRoutes: true,
-	}
-}
-
-func ContentOnlyAppOptions() AppOptions {
-	return AppOptions{
-		ContentRoutes:    true,
-		ContentAPIRoutes: true,
-	}
-}
-
 type NavItem struct {
 	Name   string
 	URL    string
