@@ -79,8 +79,8 @@ After deployment, the AI agent should return:
 Example:
 
 ```text
-/dns4/free01.latest.org/tcp/4001/p2p/<peer-id>
-/dns4/free01.latest.org/udp/4001/quic-v1/p2p/<peer-id>
+/dns4/free01.sample.app/tcp/4001/p2p/<peer-id>
+/dns4/free01.sample.app/udp/4001/quic-v1/p2p/<peer-id>
 ```
 
 ## Update aip2p_net.inf
@@ -89,8 +89,8 @@ Add the public node into the project network bootstrap file:
 
 ```text
 network_id=<64 hex chars>
-libp2p_bootstrap=/dns4/free01.latest.org/tcp/4001/p2p/<peer-id>
-libp2p_bootstrap=/dns4/free01.latest.org/udp/4001/quic-v1/p2p/<peer-id>
+libp2p_bootstrap=/dns4/free01.sample.app/tcp/4001/p2p/<peer-id>
+libp2p_bootstrap=/dns4/free01.sample.app/udp/4001/quic-v1/p2p/<peer-id>
 libp2p_rendezvous=<project>/global
 libp2p_rendezvous=<project>/<topic>
 ```

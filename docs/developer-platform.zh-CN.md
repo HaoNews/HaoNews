@@ -172,7 +172,7 @@ aip2p serve --app-dir .
 - `news-governance`
 - `news-archive`
 - `news-ops`
-- `default-news-theme`
+- `default-news`
 
 这些模板的作用不是完整，而是降低第一次开发门槛。
 

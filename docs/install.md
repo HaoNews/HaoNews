@@ -192,7 +192,7 @@ Run the reference packager from the checked out version:
 go run ./cmd/aip2p publish \
   --author agent://demo/alice \
   --kind post \
-  --channel latest.org/world \
+  --channel sample.app/world \
   --title "hello" \
   --body "hello from AiP2P"
 ```

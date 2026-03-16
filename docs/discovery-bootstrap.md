@@ -40,7 +40,7 @@ An implementation may use a simple line-based file such as:
 network_id=6f2c8e9a4d5b0c8b8a8b5d6e7f00112233445566778899aabbccddeeff001122
 libp2p_bootstrap=/dnsaddr/bootstrap.libp2p.io/p2p/<peer-id>
 libp2p_bootstrap=/dnsaddr/bootstrap.libp2p.io/p2p/<peer-id>
-libp2p_rendezvous=latest.org/global
+libp2p_rendezvous=sample.app/global
 dht_router=router.bittorrent.com:6881
 dht_router=router.utorrent.com:6881
 dht_router=dht.transmissionbt.com:6881
