@@ -1,4 +1,4 @@
-# AiP2P 面向第三方与 AI Agent 的开发者平台设计草案
+# AiP2P 面向第三方与 AI Agent 的开发者平台
 
 ## 1. 文档目的
 
@@ -10,11 +10,11 @@
 - AI agent 可以方便开发自己的插件和主题
 - `aip2p` 不是只有官方才能改的系统
 
-因此，未来的 `aip2p` 必须首先是一个“开发底座”。
+因此，`aip2p` 必须首先是一个“开发底座”。
 
 ## 2. 开发者友好的核心目标
 
-未来设计必须把下面 6 件事放在高优先级：
+当前主线仍然把下面 6 件事放在高优先级：
 
 1. 容易发现扩展点
 2. 容易创建插件和 theme
@@ -38,7 +38,7 @@
 
 AI agent 不擅长长期猜测隐式约定。
 
-因此 `aip2p` 未来的扩展体系必须尽量做到：
+因此 `aip2p` 的扩展体系必须尽量做到：
 
 - 约定显式化
 - 结构稳定化
@@ -164,7 +164,7 @@ aip2p serve --app-dir .
 
 如果没有模板，第三方和 AI agent 会很难下手。
 
-因此建议未来至少保留以下官方参考模板：
+当前应继续保留并打磨以下官方参考模板：
 
 - `hello-plugin`
 - `hello-theme`
@@ -218,7 +218,7 @@ aip2p serve --app-dir .
 - 插件负责运行时能力
 - skills 负责告诉 agent 如何使用这些能力
 
-因此建议未来：
+当前方向仍然是：
 
 - skills 可由插件声明附带
 - skills 可由工作区覆盖
@@ -227,7 +227,7 @@ aip2p serve --app-dir .
 
 ## 8. 开发者错误体验
 
-未来如果要真正友好，错误提示必须清楚。
+如果要真正友好，错误提示必须清楚。
 
 例如：
 
@@ -244,7 +244,7 @@ aip2p serve --app-dir .
 
 如果以后允许第三方生态发展，必须尽早考虑兼容性。
 
-建议未来每个扩展包声明：
+后续应继续让每个扩展包声明：
 
 - `runtime_api_version`
 - `min_host_version`
@@ -275,12 +275,48 @@ aip2p serve --app-dir .
 
 ## 12. 结论
 
-未来的 `aip2p` 不应只是一个协议仓库，也不应只是一个新闻 demo。
+`aip2p` 不应只是一个协议仓库，也不应只是一个新闻 demo。
 
-它应该成为：
+它现在已经朝这个方向落地，并应继续成为：
 
 - 一个极简 P2P 底层
 - 一个可扩展宿主
 - 一个对第三方和 AI agent 都足够友好的开发平台
 
 这也是后续真正形成生态的前提。
+
+## 13. 当前已经落地的开发者链路
+
+当前主线已经支持下面这条完整链路：
+
+- `aip2p create plugin`
+- `aip2p create theme`
+- `aip2p create app`
+- `aip2p plugins/themes/apps inspect --dir`
+- `aip2p apps validate --dir`
+- `aip2p plugins/themes/apps install`
+- `aip2p plugins/themes/apps link`
+- `aip2p plugins/themes/apps list`
+- `aip2p plugins/themes/apps remove`
+- `aip2p serve --app-dir`
+- `aip2p serve --plugin-dir`
+- `aip2p serve --theme-dir`
+
+默认 news 参考应用已经由：
+
+- `default-news`
+- `news-content`
+- `news-governance`
+- `news-archive`
+- `news-ops`
+
+这组内置模块组合而成。
+
+## 14. 当前剩余重点
+
+当前剩余重点已经不是“能不能开发扩展”，而是：
+
+- 继续压缩共享 runtime 层
+- 继续提高错误诊断质量
+- 继续减少第三方插件之间的互相污染
+- 继续把官方样板和文档对齐到当前实现
