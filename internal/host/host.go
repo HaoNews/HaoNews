@@ -21,6 +21,7 @@ type Config struct {
 	Plugin           string
 	Plugins          []string
 	PluginDirs       []string
+	PluginConfigs    map[string]map[string]any
 	Theme            string
 	ThemeDir         string
 	AppDir           string
@@ -56,6 +57,13 @@ func New(ctx context.Context, cfg Config) (*Instance, error) {
 		bundle, err = workspace.LoadAppBundle(cfg.AppDir)
 		if err != nil {
 			return nil, err
+		}
+		cfg, err = applyAppBundleConfig(cfg, bundle.Config)
+		if err != nil {
+			return nil, err
+		}
+		if len(cfg.PluginConfigs) == 0 && len(bundle.PluginConfigs) > 0 {
+			cfg.PluginConfigs = bundle.PluginConfigs
 		}
 		if strings.TrimSpace(cfg.App) == "" {
 			cfg.App = bundle.App.ID
@@ -129,6 +137,7 @@ func New(ctx context.Context, cfg Config) (*Instance, error) {
 	site, err := registry.Build(ctx, apphost.Config{
 		Plugin:           cfg.Plugin,
 		Plugins:          cfg.Plugins,
+		PluginConfigs:    cfg.PluginConfigs,
 		Theme:            cfg.Theme,
 		Project:          cfg.Project,
 		Version:          cfg.Version,
@@ -204,6 +213,57 @@ func normalizeConfig(cfg Config) Config {
 		cfg.Logf = log.Printf
 	}
 	return cfg
+}
+
+func applyAppBundleConfig(cfg Config, appCfg workspace.AppConfig) (Config, error) {
+	if strings.TrimSpace(cfg.Project) == "" {
+		cfg.Project = appCfg.Project
+	}
+	if strings.TrimSpace(cfg.Version) == "" || cfg.Version == "dev" {
+		if strings.TrimSpace(appCfg.Version) != "" {
+			cfg.Version = appCfg.Version
+		}
+	}
+	if strings.TrimSpace(cfg.Theme) == "" {
+		cfg.Theme = appCfg.Theme
+	}
+	if strings.TrimSpace(cfg.RuntimeRoot) == "" {
+		cfg.RuntimeRoot = appCfg.RuntimeRoot
+	}
+	if strings.TrimSpace(cfg.StoreRoot) == "" {
+		cfg.StoreRoot = appCfg.StoreRoot
+	}
+	if strings.TrimSpace(cfg.ArchiveRoot) == "" {
+		cfg.ArchiveRoot = appCfg.ArchiveRoot
+	}
+	if strings.TrimSpace(cfg.RulesPath) == "" {
+		cfg.RulesPath = appCfg.RulesPath
+	}
+	if strings.TrimSpace(cfg.WriterPolicyPath) == "" {
+		cfg.WriterPolicyPath = appCfg.WriterPolicyPath
+	}
+	if strings.TrimSpace(cfg.NetPath) == "" {
+		cfg.NetPath = appCfg.NetPath
+	}
+	if strings.TrimSpace(cfg.TrackerPath) == "" {
+		cfg.TrackerPath = appCfg.TrackerPath
+	}
+	if strings.TrimSpace(cfg.SyncMode) == "" {
+		cfg.SyncMode = appCfg.SyncMode
+	}
+	if strings.TrimSpace(cfg.SyncBinaryPath) == "" {
+		cfg.SyncBinaryPath = appCfg.SyncBinaryPath
+	}
+	if cfg.SyncStaleAfter <= 0 {
+		duration, err := appCfg.SyncStaleAfterDuration()
+		if err != nil {
+			return Config{}, err
+		}
+		if duration > 0 {
+			cfg.SyncStaleAfter = duration
+		}
+	}
+	return cfg, nil
 }
 
 func (i *Instance) String() string {

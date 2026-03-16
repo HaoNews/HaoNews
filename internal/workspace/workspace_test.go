@@ -15,10 +15,12 @@ import (
 func TestLoadAppBundle(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, root, "aip2p.app.json", "{\n  \"id\": \"sample-app\",\n  \"name\": \"Sample App\",\n  \"plugins\": [\"news-content\"],\n  \"theme\": \"sample-theme\"\n}\n")
+	writeFile(t, root, "aip2p.app.config.json", "{\n  \"project\": \"sample.project\",\n  \"runtime_root\": \"runtime\",\n  \"sync_stale_after\": \"45s\"\n}\n")
 	writeFile(t, root, filepath.Join("themes", "sample-theme", "aip2p.theme.json"), "{\n  \"id\": \"sample-theme\",\n  \"name\": \"Sample Theme\",\n  \"supported_plugins\": [\"news-content\"],\n  \"required_plugins\": [\"news-content\"]\n}\n")
 	writeFile(t, root, filepath.Join("themes", "sample-theme", "templates", "home.html"), "home\n")
 	writeFile(t, root, filepath.Join("themes", "sample-theme", "static", "styles.css"), "body{}\n")
 	writeFile(t, root, filepath.Join("plugins", "sample-plugin", "aip2p.plugin.json"), "{\n  \"id\": \"sample-plugin\",\n  \"name\": \"Sample Plugin\",\n  \"base_plugin\": \"news-content\",\n  \"default_theme\": \"sample-theme\"\n}\n")
+	writeFile(t, root, filepath.Join("plugins", "sample-plugin", "aip2p.plugin.config.json"), "{\n  \"channel\": \"sample-world\"\n}\n")
 
 	bundle, err := LoadAppBundle(root)
 	if err != nil {
@@ -32,6 +34,15 @@ func TestLoadAppBundle(t *testing.T) {
 	}
 	if len(bundle.PluginManifests) != 1 || bundle.PluginManifests[0].ID != "sample-plugin" {
 		t.Fatalf("plugin manifests = %#v", bundle.PluginManifests)
+	}
+	if bundle.Config.Project != "sample.project" {
+		t.Fatalf("project = %q", bundle.Config.Project)
+	}
+	if bundle.Config.RuntimeRoot != filepath.Join(root, "runtime") {
+		t.Fatalf("runtime root = %q", bundle.Config.RuntimeRoot)
+	}
+	if got := bundle.PluginConfigs["sample-plugin"]["channel"]; got != "sample-world" {
+		t.Fatalf("plugin config channel = %#v", got)
 	}
 }
 

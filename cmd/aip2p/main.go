@@ -274,6 +274,10 @@ func runPlugins(args []string) error {
 			return err
 		}
 		registry := builtin.DefaultRegistry()
+		bundle, err := workspace.LoadPluginBundleDir(*dir)
+		if err != nil {
+			return err
+		}
 		_, manifest, err := workspace.LoadPluginDir(*dir, registry)
 		if err != nil {
 			return err
@@ -282,13 +286,17 @@ func runPlugins(args []string) error {
 		if err != nil {
 			return err
 		}
+		resolved.Root = bundle.Root
+		resolved.Config = bundle.Config
 		return writeJSON(struct {
 			Dir      string                   `json:"dir"`
 			Manifest apphost.PluginManifest   `json:"manifest"`
+			Config   map[string]any           `json:"config,omitempty"`
 			Resolved workspace.ResolvedPlugin `json:"resolved"`
 		}{
 			Dir:      *dir,
 			Manifest: manifest,
+			Config:   bundle.Config,
 			Resolved: resolved,
 		})
 	default:
@@ -321,12 +329,14 @@ func runApps(args []string) error {
 		return writeJSON(struct {
 			Dir        string                     `json:"dir"`
 			App        apphost.AppManifest        `json:"app"`
+			Config     workspace.AppConfig        `json:"config"`
 			Plugins    []apphost.PluginManifest   `json:"plugins"`
 			Themes     []apphost.ThemeManifest    `json:"themes"`
 			Validation workspace.ValidationReport `json:"validation"`
 		}{
 			Dir:        *dir,
 			App:        bundle.App,
+			Config:     bundle.Config,
 			Plugins:    bundle.PluginManifests,
 			Themes:     bundle.ThemeManifests,
 			Validation: report,

@@ -46,6 +46,8 @@ type AppManifest struct {
 type Config struct {
 	Plugin           string
 	Plugins          []string
+	PluginConfig     map[string]any
+	PluginConfigs    map[string]map[string]any
 	Theme            string
 	Project          string
 	Version          string
@@ -204,6 +206,9 @@ func (r *Registry) Build(ctx context.Context, cfg Config) (*Site, error) {
 	for idx, plugin := range plugins {
 		pluginCfg := cfg
 		pluginCfg.Plugin = manifests[idx].ID
+		if len(cfg.PluginConfigs) > 0 {
+			pluginCfg.PluginConfig = cfg.PluginConfigs[manifests[idx].ID]
+		}
 		site, err := buildPlugin(ctx, plugin, pluginCfg, theme)
 		if err != nil {
 			return nil, err

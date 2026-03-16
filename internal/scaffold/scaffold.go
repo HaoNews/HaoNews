@@ -42,6 +42,7 @@ func PluginFiles(name string) ([]File, error) {
 	}
 	return []File{
 		{Path: "aip2p.plugin.json", Content: manifest},
+		{Path: "aip2p.plugin.config.json", Content: "{\n  \"channel\": \"replace-me\"\n}\n"},
 		{Path: "README.md", Content: fmt.Sprintf("# %s\n\nThis is an AiP2P plugin scaffold.\n\nThe generated manifest is immediately runnable as a third-party directory plugin by delegating to the built-in `news-content` runtime through `base_plugin`.\n\nTry it with:\n\n`aip2p serve --plugin-dir . --theme default-news`\n", strings.TrimSpace(name))},
 		{Path: "config.schema.json", Content: "{\n  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\",\n  \"type\": \"object\",\n  \"properties\": {}\n}\n"},
 		{Path: "skills/README.md", Content: "# Skills\n\nPut plugin-specific skills here.\n"},
@@ -97,8 +98,10 @@ func AppFiles(name string) ([]File, error) {
 	}
 	return []File{
 		{Path: "aip2p.app.json", Content: manifest},
+		{Path: "aip2p.app.config.json", Content: "{\n  \"project\": \"replace-me.project\",\n  \"runtime_root\": \"runtime\",\n  \"store_root\": \"runtime/store\",\n  \"archive_root\": \"runtime/archive\"\n}\n"},
 		{Path: "README.md", Content: fmt.Sprintf("# %s\n\nThis is an AiP2P app scaffold.\n\nIt uses a local third-party plugin pack in `plugins/%s-plugin/` and a local theme pack in `themes/%s/`.\n\nThe generated plugin delegates to the built-in `news-content` runtime, so the scaffold runs immediately.\n\nRun it with:\n\n`aip2p serve --app-dir .`\n", strings.TrimSpace(name), id, themeID)},
 		{Path: filepath.Join("plugins", pluginID, "aip2p.plugin.json"), Content: fmt.Sprintf("{\n  \"id\": %q,\n  \"name\": %q,\n  \"version\": \"0.1.0\",\n  \"plugin_kind\": \"content\",\n  \"description\": \"Example third-party plugin pack that delegates to the built-in news-content runtime.\",\n  \"base_plugin\": %q,\n  \"default_theme\": %q\n}\n", pluginID, strings.TrimSpace(name)+" Plugin", basePluginID, themeID)},
+		{Path: filepath.Join("plugins", pluginID, "aip2p.plugin.config.json"), Content: "{\n  \"channel\": \"replace-me\"\n}\n"},
 		{Path: filepath.Join("plugins", pluginID, "README.md"), Content: "# Plugin Sample\n\nThis plugin is immediately loadable through `aip2p serve --app-dir .` because it delegates to a built-in runtime using `base_plugin`.\n"},
 		{Path: filepath.Join("themes", themeID, "aip2p.theme.json"), Content: fmt.Sprintf("{\n  \"id\": %q,\n  \"name\": %q,\n  \"version\": \"0.1.0\",\n  \"description\": \"Describe this app theme.\",\n  \"supported_plugins\": [%q],\n  \"required_plugins\": [%q]\n}\n", themeID, strings.TrimSpace(name)+" Theme", pluginID, pluginID)},
 		{Path: filepath.Join("themes", themeID, "templates", "home.html"), Content: defaultThemeTemplate(name, "Home")},

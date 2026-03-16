@@ -57,6 +57,7 @@ aip2p create plugin my-plugin
 生成后至少包含：
 
 - `aip2p.plugin.json`
+- `aip2p.plugin.config.json`
 - `README.md`
 - `config.schema.json`
 - `src/`
@@ -130,6 +131,7 @@ aip2p serve --app-dir .
 - `plugins/<app>-plugin/`
 - `themes/<app>-theme/`
 - `aip2p.app.json`
+- `aip2p.app.config.json`
 
 其中本地插件包会通过 `base_plugin` 先委托给内置能力，因此脚手架不是占位目录，而是可运行样板。
 

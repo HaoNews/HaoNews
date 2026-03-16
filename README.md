@@ -91,6 +91,10 @@ go run ./cmd/aip2p plugins inspect --dir ./my-plugin
 go run ./cmd/aip2p serve --plugin-dir ./my-plugin --theme default-news
 ```
 
+Optional plugin workspace config:
+
+- `aip2p.plugin.config.json`
+
 Create and run a self-contained app workspace:
 
 ```bash
@@ -99,6 +103,10 @@ cd my-blog
 aip2p apps validate --dir .
 aip2p serve --app-dir .
 ```
+
+Optional app workspace config:
+
+- `aip2p.app.config.json`
 
 Latest released tag, Windows PowerShell:
 

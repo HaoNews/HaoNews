@@ -12,13 +12,16 @@ type ThemeResolver interface {
 
 type ResolvedPlugin struct {
 	RequestedID string                  `json:"requested_id"`
+	Root        string                  `json:"root,omitempty"`
 	Manifest    apphost.PluginManifest  `json:"manifest"`
 	Base        *apphost.PluginManifest `json:"base,omitempty"`
+	Config      map[string]any          `json:"config,omitempty"`
 }
 
 type ValidationReport struct {
 	Root    string                `json:"root"`
 	App     apphost.AppManifest   `json:"app"`
+	Config  AppConfig             `json:"config"`
 	Plugins []ResolvedPlugin      `json:"plugins"`
 	Theme   apphost.ThemeManifest `json:"theme"`
 	Valid   bool                  `json:"valid"`
@@ -45,9 +48,10 @@ func ValidatePluginManifest(manifest apphost.PluginManifest, resolver PluginReso
 
 func ValidateAppBundle(bundle AppBundle, pluginResolver PluginResolver, themeResolver ThemeResolver) (ValidationReport, error) {
 	report := ValidationReport{
-		Root:  bundle.Root,
-		App:   bundle.App,
-		Valid: false,
+		Root:   bundle.Root,
+		App:    bundle.App,
+		Config: bundle.Config,
+		Valid:  false,
 	}
 	plugins := make([]ResolvedPlugin, 0, len(bundle.App.Plugins))
 	pluginManifests := make([]apphost.PluginManifest, 0, len(bundle.App.Plugins))
@@ -65,6 +69,12 @@ func ValidateAppBundle(bundle AppBundle, pluginResolver PluginResolver, themeRes
 		}
 		if resolved.Manifest.ID == "" {
 			resolved.Manifest = plugin.Manifest()
+		}
+		if root, ok := bundle.PluginRoots[resolved.Manifest.ID]; ok {
+			resolved.Root = root
+		}
+		if cfg, ok := bundle.PluginConfigs[resolved.Manifest.ID]; ok {
+			resolved.Config = cfg
 		}
 		plugins = append(plugins, resolved)
 		pluginManifests = append(pluginManifests, resolved.Manifest)

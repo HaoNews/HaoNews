@@ -15,9 +15,18 @@ import (
 type AppBundle struct {
 	Root            string
 	App             apphost.AppManifest
+	Config          AppConfig
 	ThemeManifests  []apphost.ThemeManifest
 	PluginManifests []apphost.PluginManifest
+	PluginConfigs   map[string]map[string]any
+	PluginRoots     map[string]string
 	Themes          []directorytheme.Theme
+}
+
+type PluginBundle struct {
+	Root     string
+	Manifest apphost.PluginManifest
+	Config   map[string]any
 }
 
 type PluginResolver interface {
@@ -33,7 +42,7 @@ func LoadAppBundle(root string) (AppBundle, error) {
 	if err != nil {
 		return AppBundle{}, err
 	}
-	data, err := os.ReadFile(filepath.Join(root, "aip2p.app.json"))
+	data, err := os.ReadFile(filepath.Join(root, appManifestName))
 	if err != nil {
 		return AppBundle{}, err
 	}
@@ -41,19 +50,36 @@ func LoadAppBundle(root string) (AppBundle, error) {
 	if err != nil {
 		return AppBundle{}, err
 	}
+	config, err := LoadAppConfig(root)
+	if err != nil {
+		return AppBundle{}, err
+	}
 	themes, themeManifests, err := loadThemes(filepath.Join(root, "themes"))
 	if err != nil {
 		return AppBundle{}, err
 	}
-	pluginManifests, err := loadPluginManifests(filepath.Join(root, "plugins"))
+	pluginBundles, err := loadPluginBundles(filepath.Join(root, "plugins"))
 	if err != nil {
 		return AppBundle{}, err
+	}
+	pluginManifests := make([]apphost.PluginManifest, 0, len(pluginBundles))
+	pluginConfigs := make(map[string]map[string]any, len(pluginBundles))
+	pluginRoots := make(map[string]string, len(pluginBundles))
+	for _, bundle := range pluginBundles {
+		pluginManifests = append(pluginManifests, bundle.Manifest)
+		pluginRoots[bundle.Manifest.ID] = bundle.Root
+		if len(bundle.Config) > 0 {
+			pluginConfigs[bundle.Manifest.ID] = bundle.Config
+		}
 	}
 	return AppBundle{
 		Root:            root,
 		App:             app,
+		Config:          config,
 		ThemeManifests:  themeManifests,
 		PluginManifests: pluginManifests,
+		PluginConfigs:   pluginConfigs,
+		PluginRoots:     pluginRoots,
 		Themes:          themes,
 	}, nil
 }
@@ -67,7 +93,7 @@ func LoadPluginManifestDir(root string) (apphost.PluginManifest, error) {
 	if err != nil {
 		return apphost.PluginManifest{}, err
 	}
-	data, err := os.ReadFile(filepath.Join(root, "aip2p.plugin.json"))
+	data, err := os.ReadFile(filepath.Join(root, pluginManifestName))
 	if err != nil {
 		return apphost.PluginManifest{}, err
 	}
@@ -142,7 +168,31 @@ func loadThemes(root string) ([]directorytheme.Theme, []apphost.ThemeManifest, e
 	return themes, manifests, nil
 }
 
-func loadPluginManifests(root string) ([]apphost.PluginManifest, error) {
+func LoadPluginBundleDir(root string) (PluginBundle, error) {
+	root = strings.TrimSpace(root)
+	if root == "" {
+		return PluginBundle{}, fmt.Errorf("plugin directory is required")
+	}
+	root, err := filepath.Abs(root)
+	if err != nil {
+		return PluginBundle{}, err
+	}
+	manifest, err := LoadPluginManifestDir(root)
+	if err != nil {
+		return PluginBundle{}, err
+	}
+	config, err := LoadPluginConfig(root)
+	if err != nil {
+		return PluginBundle{}, err
+	}
+	return PluginBundle{
+		Root:     root,
+		Manifest: manifest,
+		Config:   config,
+	}, nil
+}
+
+func loadPluginBundles(root string) ([]PluginBundle, error) {
 	entries, err := os.ReadDir(root)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -150,19 +200,19 @@ func loadPluginManifests(root string) ([]apphost.PluginManifest, error) {
 		}
 		return nil, err
 	}
-	manifests := make([]apphost.PluginManifest, 0, len(entries))
+	bundles := make([]PluginBundle, 0, len(entries))
 	for _, entry := range entries {
 		if !entry.IsDir() {
 			continue
 		}
-		manifest, err := LoadPluginManifestDir(filepath.Join(root, entry.Name()))
+		bundle, err := LoadPluginBundleDir(filepath.Join(root, entry.Name()))
 		if err != nil {
 			return nil, err
 		}
-		manifests = append(manifests, manifest)
+		bundles = append(bundles, bundle)
 	}
-	sort.Slice(manifests, func(i, j int) bool {
-		return manifests[i].ID < manifests[j].ID
+	sort.Slice(bundles, func(i, j int) bool {
+		return bundles[i].Manifest.ID < bundles[j].Manifest.ID
 	})
-	return manifests, nil
+	return bundles, nil
 }

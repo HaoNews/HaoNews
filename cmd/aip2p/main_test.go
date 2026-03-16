@@ -9,7 +9,9 @@ import (
 func TestInspectAppDir(t *testing.T) {
 	root := t.TempDir()
 	writeMainTestFile(t, root, "aip2p.app.json", "{\n  \"id\": \"sample-app\",\n  \"name\": \"Sample App\",\n  \"plugins\": [\"sample-content\"],\n  \"theme\": \"sample-theme\"\n}\n")
+	writeMainTestFile(t, root, "aip2p.app.config.json", "{\n  \"project\": \"sample.project\",\n  \"runtime_root\": \"runtime-data\"\n}\n")
 	writeMainTestFile(t, root, filepath.Join("plugins", "sample-content", "aip2p.plugin.json"), "{\n  \"id\": \"sample-content\",\n  \"name\": \"Sample Content\",\n  \"base_plugin\": \"news-content\",\n  \"default_theme\": \"sample-theme\"\n}\n")
+	writeMainTestFile(t, root, filepath.Join("plugins", "sample-content", "aip2p.plugin.config.json"), "{\n  \"channel\": \"sample-world\"\n}\n")
 	writeMainTestFile(t, root, filepath.Join("themes", "sample-theme", "aip2p.theme.json"), "{\n  \"id\": \"sample-theme\",\n  \"name\": \"Sample Theme\",\n  \"supported_plugins\": [\"sample-content\"],\n  \"required_plugins\": [\"sample-content\"]\n}\n")
 	writeMainTestFile(t, root, filepath.Join("themes", "sample-theme", "templates", "home.html"), "home\n")
 	writeMainTestFile(t, root, filepath.Join("themes", "sample-theme", "templates", "post.html"), "post\n")
@@ -33,8 +35,14 @@ func TestInspectAppDir(t *testing.T) {
 	if !report.Valid {
 		t.Fatalf("report valid = false")
 	}
+	if report.Config.Project != "sample.project" {
+		t.Fatalf("project = %q", report.Config.Project)
+	}
 	if len(report.Plugins) != 1 || report.Plugins[0].Base == nil || report.Plugins[0].Base.ID != "news-content" {
 		t.Fatalf("plugins = %#v", report.Plugins)
+	}
+	if got := report.Plugins[0].Config["channel"]; got != "sample-world" {
+		t.Fatalf("plugin config = %#v", report.Plugins[0].Config)
 	}
 }
 

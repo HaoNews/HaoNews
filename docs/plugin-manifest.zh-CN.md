@@ -35,6 +35,7 @@
 每个插件目录至少包含：
 
 - `aip2p.plugin.json`
+- `aip2p.plugin.config.json`
 - `README.md`
 - `config.schema.json`
 - `src/` 或 `handlers/`

@@ -35,6 +35,17 @@ func TestValidateAppBundle(t *testing.T) {
 			Plugins: []string{"sample-content"},
 			Theme:   "default-news",
 		},
+		Config: AppConfig{
+			Project: "sample.project",
+		},
+		PluginConfigs: map[string]map[string]any{
+			"sample-content": {
+				"channel": "sample-world",
+			},
+		},
+		PluginRoots: map[string]string{
+			"sample-content": "/tmp/sample-content",
+		},
 	}
 	registry := apphost.NewRegistry()
 	registry.MustRegisterPlugin(pluginWithManifest(apphost.PluginManifest{
@@ -64,6 +75,15 @@ func TestValidateAppBundle(t *testing.T) {
 	}
 	if len(report.Plugins) != 1 || report.Plugins[0].Base == nil || report.Plugins[0].Base.ID != "news-content" {
 		t.Fatalf("plugins = %#v", report.Plugins)
+	}
+	if report.Config.Project != "sample.project" {
+		t.Fatalf("project = %q", report.Config.Project)
+	}
+	if report.Plugins[0].Root != "/tmp/sample-content" {
+		t.Fatalf("root = %q", report.Plugins[0].Root)
+	}
+	if got := report.Plugins[0].Config["channel"]; got != "sample-world" {
+		t.Fatalf("config channel = %#v", got)
 	}
 }
 
