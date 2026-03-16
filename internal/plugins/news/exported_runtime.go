@@ -35,6 +35,10 @@ func (a *App) Index() (Index, error) {
 	return a.index()
 }
 
+func (a *App) SubscriptionRules() (SubscriptionRules, error) {
+	return a.subscriptionRules()
+}
+
 func (a *App) HTTPListenAddr() string {
 	return a.httpListenAddr()
 }
@@ -57,6 +61,10 @@ func (a *App) NetworkBootstrap() (NetworkBootstrapConfig, error) {
 
 func (a *App) LANBTStatus(ctx context.Context, cfg NetworkBootstrapConfig) ([]LANBTAnchorStatus, bool, string) {
 	return a.lanBTStatus(ctx, cfg)
+}
+
+func (a *App) LatestHistoryListPayload() (HistoryManifestAPIResponse, error) {
+	return a.latestHistoryListPayload()
 }
 
 func DefaultWriterPolicy() WriterPolicy {
@@ -85,4 +93,32 @@ func DialableBitTorrentNodes(status SyncRuntimeStatus, host string) []string {
 
 func WriteJSON(w http.ResponseWriter, status int, payload any) {
 	writeJSON(w, status, payload)
+}
+
+func BuildArchiveDays(index Index) []ArchiveDay {
+	return buildArchiveDays(index)
+}
+
+func MarkArchiveDayActive(days []ArchiveDay, active string) []ArchiveDay {
+	return markArchiveDayActive(days, active)
+}
+
+func HasArchiveDay(days []ArchiveDay, target string) bool {
+	return hasArchiveDay(days, target)
+}
+
+func BuildArchiveSummaryStats(days []ArchiveDay, bundles int) []SummaryStat {
+	return buildArchiveSummaryStats(days, bundles)
+}
+
+func BuildArchiveDayStats(entries []ArchiveEntry) []SummaryStat {
+	return buildArchiveDayStats(entries)
+}
+
+func BuildArchiveEntries(index Index, day string) []ArchiveEntry {
+	return buildArchiveEntries(index, day)
+}
+
+func FindArchiveEntry(index Index, infoHash string) (ArchiveEntry, bool) {
+	return findArchiveEntry(index, infoHash)
 }
