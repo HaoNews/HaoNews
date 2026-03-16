@@ -261,7 +261,7 @@ skills 是插件生态的一部分，但不进入 core。
 
 1. 先定义插件 manifest
 2. 再定义宿主 runtime API
-3. 再拆 `aip2p-news` 为默认插件
+3. 再拆 `aip2p-news` 为默认插件组
 4. 最后再开放第三方插件开发
 
 ## 13. 当前阶段结论

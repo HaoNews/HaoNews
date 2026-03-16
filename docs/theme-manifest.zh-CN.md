@@ -206,7 +206,7 @@ theme 也可以有配置 schema，但只应作用于显示层。
   "theme_api_version": "0.1",
   "templates": "./templates",
   "static": "./static",
-  "supported_plugins": ["news"],
+  "supported_plugins": ["news-content", "news-archive", "news-governance", "news-ops"],
   "required_plugins": ["news-content"],
   "supports": [
     "NewsFeedPageModel",

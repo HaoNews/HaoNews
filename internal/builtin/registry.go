@@ -7,7 +7,6 @@ import (
 
 	"aip2p.org/internal/apphost"
 	newsarchive "aip2p.org/internal/plugins/newsarchive"
-	newsplugin "aip2p.org/internal/plugins/news"
 	newscontent "aip2p.org/internal/plugins/newscontent"
 	newsgovernance "aip2p.org/internal/plugins/newsgovernance"
 	newsops "aip2p.org/internal/plugins/newsops"
@@ -20,7 +19,6 @@ var defaultNewsAppJSON []byte
 func DefaultRegistry() *apphost.Registry {
 	registry := apphost.NewRegistry()
 	registry.MustRegisterTheme(defaultnews.Theme{})
-	registry.MustRegisterPlugin(newsplugin.Plugin{})
 	registry.MustRegisterPlugin(newscontent.Plugin{})
 	registry.MustRegisterPlugin(newsarchive.Plugin{})
 	registry.MustRegisterPlugin(newsgovernance.Plugin{})
