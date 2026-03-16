@@ -18,5 +18,28 @@ func (Plugin) Manifest() apphost.PluginManifest {
 }
 
 func (Plugin) Build(_ context.Context, cfg apphost.Config, theme apphost.WebTheme) (*apphost.Site, error) {
-	return newsplugin.BuildScopedPluginSite(cfg, theme, Plugin{}.Manifest(), newsplugin.GovernanceOnlyAppOptions())
+	cfg = newsplugin.ApplyDefaultConfig(cfg)
+	app, err := newsplugin.NewWithThemeAndOptions(
+		cfg.StoreRoot,
+		cfg.Project,
+		cfg.Version,
+		cfg.ArchiveRoot,
+		cfg.RulesPath,
+		cfg.WriterPolicyPath,
+		cfg.NetPath,
+		theme,
+		newsplugin.GovernanceOnlyAppOptions(),
+	)
+	if err != nil {
+		return nil, err
+	}
+	staticFS, err := theme.StaticFS()
+	if err != nil {
+		return nil, err
+	}
+	return &apphost.Site{
+		Manifest: Plugin{}.Manifest(),
+		Theme:    theme.Manifest(),
+		Handler:  newHandler(app, staticFS),
+	}, nil
 }

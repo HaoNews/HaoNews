@@ -1,20 +1,21 @@
-package newsplugin
+package newsgovernance
 
 import (
 	"encoding/json"
+	"io/fs"
 	"net/http"
 	"os"
-	"path/filepath"
 	"sort"
-	"strconv"
 	"strings"
+
+	newsplugin "aip2p.org/internal/plugins/news"
 )
 
 type WriterPolicyPageData struct {
 	Project                   string
 	Version                   string
-	PageNav                   []NavItem
-	NodeStatus                NodeStatus
+	PageNav                   []newsplugin.NavItem
+	NodeStatus                newsplugin.NodeStatus
 	PolicyPath                string
 	WhitelistPath             string
 	BlacklistPath             string
@@ -34,36 +35,45 @@ type WriterPolicyPageData struct {
 	BlockedPublicKeysText     string
 	RelayPeerTrustText        string
 	RelayHostTrustText        string
-	EffectiveSummary          []SummaryStat
+	EffectiveSummary          []newsplugin.SummaryStat
 }
 
-func (a *App) handleWriterPolicy(w http.ResponseWriter, r *http.Request) {
+func newHandler(app *newsplugin.App, staticFS fs.FS) http.Handler {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/writer-policy", func(w http.ResponseWriter, r *http.Request) {
+		handleWriterPolicy(app, w, r)
+	})
+	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.FS(staticFS))))
+	return mux
+}
+
+func handleWriterPolicy(app *newsplugin.App, w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/writer-policy" {
 		http.NotFound(w, r)
 		return
 	}
 	switch r.Method {
 	case http.MethodGet:
-		a.renderWriterPolicyPage(w, r, "", r.URL.Query().Get("saved") == "1")
+		renderWriterPolicyPage(app, w, r, "", r.URL.Query().Get("saved") == "1")
 	case http.MethodPost:
 		if err := r.ParseForm(); err != nil {
-			a.renderWriterPolicyPage(w, r, err.Error(), false)
+			renderWriterPolicyPage(app, w, r, err.Error(), false)
 			return
 		}
 		policy, err := writerPolicyFromForm(r)
 		if err != nil {
-			a.renderWriterPolicyPage(w, r, err.Error(), false)
+			renderWriterPolicyPage(app, w, r, err.Error(), false)
 			return
 		}
-		policy.normalize()
+		policy.Normalize()
 		data, err := json.MarshalIndent(policy, "", "  ")
 		if err != nil {
-			a.renderWriterPolicyPage(w, r, err.Error(), false)
+			renderWriterPolicyPage(app, w, r, err.Error(), false)
 			return
 		}
 		data = append(data, '\n')
-		if err := os.WriteFile(a.writerPath, data, 0o644); err != nil {
-			a.renderWriterPolicyPage(w, r, err.Error(), false)
+		if err := os.WriteFile(app.WriterPolicyPath(), data, 0o644); err != nil {
+			renderWriterPolicyPage(app, w, r, err.Error(), false)
 			return
 		}
 		http.Redirect(w, r, "/writer-policy?saved=1", http.StatusSeeOther)
@@ -72,11 +82,11 @@ func (a *App) handleWriterPolicy(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (a *App) renderWriterPolicyPage(w http.ResponseWriter, r *http.Request, formErr string, saved bool) {
-	policy, err := loadLocalWriterPolicy(a.writerPath)
+func renderWriterPolicyPage(app *newsplugin.App, w http.ResponseWriter, r *http.Request, formErr string, saved bool) {
+	policy, err := loadLocalWriterPolicy(app.WriterPolicyPath())
 	if err != nil {
 		formErr = err.Error()
-		policy = defaultWriterPolicy()
+		policy = newsplugin.DefaultWriterPolicy()
 	}
 	if r.Method == http.MethodPost {
 		if posted, postErr := writerPolicyFromForm(r); postErr == nil {
@@ -84,13 +94,13 @@ func (a *App) renderWriterPolicyPage(w http.ResponseWriter, r *http.Request, for
 		}
 	}
 	data := WriterPolicyPageData{
-		Project:                   displayProjectName(a.project),
-		Version:                   a.version,
-		PageNav:                   a.pageNav("/writer-policy"),
-		NodeStatus:                NodeStatus{Summary: "policy", SummaryTone: "good"},
-		PolicyPath:                a.writerPath,
-		WhitelistPath:             filepath.Join(filepath.Dir(a.writerPath), writerWhitelistINFName),
-		BlacklistPath:             filepath.Join(filepath.Dir(a.writerPath), writerBlacklistINFName),
+		Project:                   app.ProjectName(),
+		Version:                   app.VersionString(),
+		PageNav:                   app.PageNav("/writer-policy"),
+		NodeStatus:                newsplugin.NodeStatus{Summary: "policy", SummaryTone: "good"},
+		PolicyPath:                app.WriterPolicyPath(),
+		WhitelistPath:             newsplugin.WriterWhitelistPath(app.WriterPolicyPath()),
+		BlacklistPath:             newsplugin.WriterBlacklistPath(app.WriterPolicyPath()),
 		Saved:                     saved,
 		Error:                     formErr,
 		SyncMode:                  string(policy.SyncMode),
@@ -107,39 +117,39 @@ func (a *App) renderWriterPolicyPage(w http.ResponseWriter, r *http.Request, for
 		BlockedPublicKeysText:     strings.Join(policy.BlockedPublicKeys, "\n"),
 		RelayPeerTrustText:        formatRelayTrustMap(policy.RelayPeerTrust),
 		RelayHostTrustText:        formatRelayTrustMap(policy.RelayHostTrust),
-		EffectiveSummary:          a.governanceSummary(),
+		EffectiveSummary:          app.GovernanceSummary(),
 	}
-	if err := a.templates.ExecuteTemplate(w, "writer_policy.html", data); err != nil {
+	if err := app.Templates().ExecuteTemplate(w, "writer_policy.html", data); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
 
-func loadLocalWriterPolicy(path string) (WriterPolicy, error) {
+func loadLocalWriterPolicy(path string) (newsplugin.WriterPolicy, error) {
 	path = strings.TrimSpace(path)
 	if path == "" {
-		return defaultWriterPolicy(), nil
+		return newsplugin.DefaultWriterPolicy(), nil
 	}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return defaultWriterPolicy(), nil
+			return newsplugin.DefaultWriterPolicy(), nil
 		}
-		return WriterPolicy{}, err
+		return newsplugin.WriterPolicy{}, err
 	}
-	var policy WriterPolicy
+	var policy newsplugin.WriterPolicy
 	if err := json.Unmarshal(data, &policy); err != nil {
-		return WriterPolicy{}, err
+		return newsplugin.WriterPolicy{}, err
 	}
-	policy.normalize()
+	policy.Normalize()
 	return policy, nil
 }
 
-func writerPolicyFromForm(r *http.Request) (WriterPolicy, error) {
-	policy := WriterPolicy{
-		SyncMode:              WriterSyncMode(r.FormValue("sync_mode")),
+func writerPolicyFromForm(r *http.Request) (newsplugin.WriterPolicy, error) {
+	policy := newsplugin.WriterPolicy{
+		SyncMode:              newsplugin.WriterSyncMode(r.FormValue("sync_mode")),
 		AllowUnsigned:         r.FormValue("allow_unsigned") == "on",
-		DefaultCapability:     WriterCapability(r.FormValue("default_capability")),
-		RelayDefaultTrust:     RelayTrust(r.FormValue("relay_default_trust")),
+		DefaultCapability:     newsplugin.WriterCapability(r.FormValue("default_capability")),
+		RelayDefaultTrust:     newsplugin.RelayTrust(r.FormValue("relay_default_trust")),
 		TrustedAuthorities:    parseStringMap(r.FormValue("trusted_authorities")),
 		SharedRegistries:      parseList(r.FormValue("shared_registries")),
 		AgentCapabilities:     parseCapabilityMap(r.FormValue("agent_capabilities")),
@@ -151,7 +161,7 @@ func writerPolicyFromForm(r *http.Request) (WriterPolicy, error) {
 		RelayPeerTrust:        parseRelayTrustMap(r.FormValue("relay_peer_trust")),
 		RelayHostTrust:        parseRelayTrustMap(r.FormValue("relay_host_trust")),
 	}
-	policy.normalize()
+	policy.Normalize()
 	return policy, nil
 }
 
@@ -194,12 +204,12 @@ func parseStringMap(raw string) map[string]string {
 	return out
 }
 
-func parseCapabilityMap(raw string) map[string]WriterCapability {
+func parseCapabilityMap(raw string) map[string]newsplugin.WriterCapability {
 	lines := parseList(raw)
 	if len(lines) == 0 {
 		return nil
 	}
-	out := make(map[string]WriterCapability, len(lines))
+	out := make(map[string]newsplugin.WriterCapability, len(lines))
 	for _, line := range lines {
 		key, value, ok := strings.Cut(line, "=")
 		if !ok {
@@ -210,7 +220,7 @@ func parseCapabilityMap(raw string) map[string]WriterCapability {
 		if key == "" || value == "" {
 			continue
 		}
-		out[key] = WriterCapability(value)
+		out[key] = newsplugin.WriterCapability(value)
 	}
 	if len(out) == 0 {
 		return nil
@@ -218,12 +228,12 @@ func parseCapabilityMap(raw string) map[string]WriterCapability {
 	return out
 }
 
-func parseRelayTrustMap(raw string) map[string]RelayTrust {
+func parseRelayTrustMap(raw string) map[string]newsplugin.RelayTrust {
 	lines := parseList(raw)
 	if len(lines) == 0 {
 		return nil
 	}
-	out := make(map[string]RelayTrust, len(lines))
+	out := make(map[string]newsplugin.RelayTrust, len(lines))
 	for _, line := range lines {
 		key, value, ok := strings.Cut(line, "=")
 		if !ok {
@@ -234,7 +244,7 @@ func parseRelayTrustMap(raw string) map[string]RelayTrust {
 		if key == "" || value == "" {
 			continue
 		}
-		out[key] = RelayTrust(value)
+		out[key] = newsplugin.RelayTrust(value)
 	}
 	if len(out) == 0 {
 		return nil
@@ -258,7 +268,7 @@ func formatStringMap(items map[string]string) string {
 	return strings.Join(lines, "\n")
 }
 
-func formatCapabilityMap(items map[string]WriterCapability) string {
+func formatCapabilityMap(items map[string]newsplugin.WriterCapability) string {
 	if len(items) == 0 {
 		return ""
 	}
@@ -274,7 +284,7 @@ func formatCapabilityMap(items map[string]WriterCapability) string {
 	return strings.Join(lines, "\n")
 }
 
-func formatRelayTrustMap(items map[string]RelayTrust) string {
+func formatRelayTrustMap(items map[string]newsplugin.RelayTrust) string {
 	if len(items) == 0 {
 		return ""
 	}
@@ -288,24 +298,4 @@ func formatRelayTrustMap(items map[string]RelayTrust) string {
 		lines = append(lines, key+"="+string(items[key]))
 	}
 	return strings.Join(lines, "\n")
-}
-
-func writerPolicySummary(policy WriterPolicy, err error) []SummaryStat {
-	if err != nil {
-		return []SummaryStat{
-			{Label: "Effective policy", Value: "load error"},
-			{Label: "Reason", Value: err.Error()},
-		}
-	}
-	return []SummaryStat{
-		{Label: "Sync mode", Value: string(policy.SyncMode)},
-		{Label: "Trusted authorities", Value: itoa(len(policy.TrustedAuthorities))},
-		{Label: "Shared registries", Value: itoa(len(policy.SharedRegistries))},
-		{Label: "Writer caps", Value: itoa(len(policy.AgentCapabilities) + len(policy.PublicKeyCapabilities))},
-		{Label: "Relay trust rules", Value: itoa(len(policy.RelayPeerTrust) + len(policy.RelayHostTrust))},
-	}
-}
-
-func itoa(v int) string {
-	return strconv.Itoa(v)
 }

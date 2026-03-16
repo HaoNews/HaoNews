@@ -532,10 +532,6 @@ func (a *App) index() (Index, error) {
 	if err != nil {
 		return Index{}, err
 	}
-	delegations, err := LoadDelegationStore(delegationDirForWriterPolicy(a.writerPath), revocationDirForWriterPolicy(a.writerPath))
-	if err != nil {
-		return Index{}, err
-	}
 	if a.loadRules != nil {
 		rules, err := a.loadRules(a.rulesPath)
 		if err != nil {
@@ -543,14 +539,9 @@ func (a *App) index() (Index, error) {
 		}
 		index = ApplySubscriptionRules(index, a.project, rules)
 	}
-	if a.loadWriter != nil {
-		policy, err := a.loadWriter(a.writerPath)
-		if err != nil {
-			return Index{}, err
-		}
-		index = ApplyWriterPolicyWithDelegations(index, a.project, policy, delegations)
-	} else {
-		index = applyDelegationMetadata(index, a.project, delegations)
+	index, err = a.governanceIndex(index)
+	if err != nil {
+		return Index{}, err
 	}
 	if a.syncIndex != nil {
 		if err := a.syncIndex(&index, a.archive); err != nil {

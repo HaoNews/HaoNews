@@ -117,6 +117,10 @@ func (p *WriterPolicy) normalize() {
 	p.PublicKeyCapabilities = normalizeCapabilityMap(p.PublicKeyCapabilities, true)
 }
 
+func (p *WriterPolicy) Normalize() {
+	p.normalize()
+}
+
 func (p WriterPolicy) Empty() bool {
 	p.normalize()
 	return p.AllowUnsigned &&

@@ -25,7 +25,7 @@ func TestInspectAppDir(t *testing.T) {
 	writeMainTestFile(t, root, filepath.Join("themes", "sample-theme", "templates", "partials.html"), "{{/* */}}\n")
 	writeMainTestFile(t, root, filepath.Join("themes", "sample-theme", "static", "styles.css"), "body{}\n")
 
-	bundle, report, err := inspectAppDir(root)
+	bundle, report, err := inspectAppDir(root, "")
 	if err != nil {
 		t.Fatalf("inspect app dir: %v", err)
 	}

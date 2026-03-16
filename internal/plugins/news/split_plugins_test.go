@@ -1,6 +1,7 @@
 package newsplugin
 
 import (
+	"errors"
 	"html/template"
 	"io/fs"
 	"net/http"
@@ -125,6 +126,42 @@ func TestScopedRoutesRegisterOnlySelectedDomains(t *testing.T) {
 	opsHandler.ServeHTTP(rec, req)
 	if rec.Code != http.StatusNotFound {
 		t.Fatalf("ops-only topics status = %d, want %d", rec.Code, http.StatusNotFound)
+	}
+}
+
+func TestGovernanceSummaryUsesLoadWriterResult(t *testing.T) {
+	t.Parallel()
+
+	app := newTestApp(t, fixtureIndex())
+	app.loadWriter = func(string) (WriterPolicy, error) {
+		return WriterPolicy{
+			SyncMode:              WriterSyncModeWhitelist,
+			AllowedAgentIDs:       []string{"agent://writer/1", "agent://writer/2"},
+			BlockedAgentIDs:       []string{"agent://blocked/1"},
+			SharedRegistries:      []string{"registry-1"},
+			TrustedAuthorities:    map[string]string{"authority://main": "abcd"},
+			DefaultCapability:     WriterCapabilityReadOnly,
+			PublicKeyCapabilities: map[string]WriterCapability{"abcd": WriterCapabilityReadWrite},
+		}, nil
+	}
+
+	summary := app.governanceSummary()
+	if len(summary) == 0 {
+		t.Fatal("expected governance summary")
+	}
+}
+
+func TestGovernanceSummarySurfacesLoadWriterError(t *testing.T) {
+	t.Parallel()
+
+	app := newTestApp(t, fixtureIndex())
+	app.loadWriter = func(string) (WriterPolicy, error) {
+		return WriterPolicy{}, errors.New("load failed")
+	}
+
+	summary := app.governanceSummary()
+	if len(summary) == 0 || summary[0].Value != "load error" {
+		t.Fatalf("unexpected summary = %#v", summary)
 	}
 }
 
