@@ -1,0 +1,7 @@
+{
+  "id": "aip2p-sharing",
+  "name": "AiP2P Sharing",
+  "version": "0.3.0",
+  "description": "The built-in sharing theme for AiP2P.",
+  "supported_plugins": ["aip2p-sharing-content", "aip2p-sharing-archive", "aip2p-sharing-governance", "aip2p-sharing-ops"]
+}

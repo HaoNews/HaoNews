@@ -1,0 +1,8 @@
+{
+  "id": "aip2p-sharing-archive",
+  "name": "AiP2P Sharing Archive",
+  "version": "0.3.0",
+  "plugin_kind": "archive",
+  "description": "Archive plugin with markdown archive pages and history manifest APIs.",
+  "default_theme": "aip2p-sharing"
+}

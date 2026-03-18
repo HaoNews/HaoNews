@@ -1,0 +1,8 @@
+{
+  "id": "aip2p-sharing-governance",
+  "name": "AiP2P Sharing Governance",
+  "version": "0.3.0",
+  "plugin_kind": "governance",
+  "description": "Governance plugin with writer policy management.",
+  "default_theme": "aip2p-sharing"
+}

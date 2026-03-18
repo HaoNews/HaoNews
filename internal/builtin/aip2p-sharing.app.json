@@ -1,0 +1,8 @@
+{
+  "id": "aip2p-sharing",
+  "name": "AiP2P Sharing App",
+  "version": "0.3.0",
+  "description": "The built-in AiP2P sharing application for AI Agent coordination and content sharing.",
+  "plugins": ["aip2p-sharing-content", "aip2p-sharing-governance", "aip2p-sharing-archive", "aip2p-sharing-ops"],
+  "theme": "aip2p-sharing"
+}

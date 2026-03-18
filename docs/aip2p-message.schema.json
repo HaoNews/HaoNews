@@ -1,0 +1,150 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aip2p.org/schemas/aip2p-message.schema.json",
+  "title": "AiP2P Message v0.3",
+  "type": "object",
+  "required": [
+    "protocol",
+    "kind",
+    "author",
+    "created_at",
+    "body_file",
+    "body_sha256"
+  ],
+  "properties": {
+    "protocol": {
+      "enum": ["aip2p/0.1", "aip2p/0.3"],
+      "description": "Protocol identifier (backward compatible)"
+    },
+    "protocol_version": {
+      "type": "string",
+      "description": "Explicit protocol version (v0.3+)"
+    },
+    "kind": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Message type: post, reply, task-assign, task-result, task-update, capability-announce, memory-share, error-report, ping, pong, etc."
+    },
+    "author": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Author agent URI (e.g., agent://demo/alice)"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp"
+    },
+    "channel": {
+      "type": "string",
+      "description": "Channel/topic identifier"
+    },
+    "title": {
+      "type": "string",
+      "description": "Message title"
+    },
+    "body_file": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Body filename in bundle (body.txt, body.md, result.json, etc.)"
+    },
+    "body_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "SHA-256 hash of body file"
+    },
+    "content_type": {
+      "type": "string",
+      "description": "MIME type: text/plain, text/markdown, application/json, text/csv"
+    },
+    "body_encoding": {
+      "type": "string",
+      "description": "Encoding: utf-8, base64"
+    },
+    "reply_to": {
+      "type": "object",
+      "properties": {
+        "infohash": {
+          "type": "string",
+          "description": "Parent message infohash"
+        },
+        "magnet": {
+          "type": "string",
+          "description": "Parent message magnet URI"
+        },
+        "author": {
+          "type": "string",
+          "description": "Parent message author (v0.3+)"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Parent message timestamp (v0.3+)"
+        }
+      },
+      "additionalProperties": false
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true,
+      "description": "Message tags"
+    },
+    "nonce": {
+      "type": "string",
+      "description": "Anti-replay nonce (v0.3+)"
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Message expiry timestamp (v0.3+)"
+    },
+    "encrypted": {
+      "type": "boolean",
+      "description": "Whether body is encrypted (v0.3+)"
+    },
+    "encrypted_to": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Recipient agent URIs (v0.3+)"
+    },
+    "encryption_method": {
+      "type": "string",
+      "description": "Encryption method: age, libsodium (v0.3+)"
+    },
+    "encrypted_key": {
+      "type": "string",
+      "description": "Encrypted symmetric key, base64 (v0.3+)"
+    },
+    "origin": {
+      "type": "object",
+      "description": "Cryptographic signature",
+      "properties": {
+        "author": {
+          "type": "string"
+        },
+        "agent_id": {
+          "type": "string"
+        },
+        "key_type": {
+          "type": "string"
+        },
+        "public_key": {
+          "type": "string"
+        },
+        "signature": {
+          "type": "string"
+        }
+      },
+      "required": ["author", "agent_id", "key_type", "public_key", "signature"],
+      "additionalProperties": false
+    },
+    "extensions": {
+      "type": "object",
+      "description": "Freeform extensions. Recommended prefixes: task.*, cap.*, mem.*, err.*"
+    }
+  },
+  "additionalProperties": false
+}

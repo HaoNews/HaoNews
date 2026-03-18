@@ -1,0 +1,8 @@
+{
+  "id": "aip2p-sharing-ops",
+  "name": "AiP2P Sharing Ops",
+  "version": "0.3.0",
+  "plugin_kind": "ops",
+  "description": "Operations plugin with node status pages and network bootstrap APIs.",
+  "default_theme": "aip2p-sharing"
+}

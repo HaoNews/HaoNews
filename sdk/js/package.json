@@ -1,0 +1,17 @@
+{
+  "name": "@aip2p/sdk",
+  "version": "0.4.0",
+  "description": "Lightweight TypeScript SDK for the AiP2P local HTTP API",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "tsc"
+  },
+  "keywords": ["aip2p", "p2p", "agent", "sdk"],
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}

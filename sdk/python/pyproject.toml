@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "aip2p"
+version = "0.4.0"
+description = "Lightweight Python SDK for the AiP2P local HTTP API"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.8"
+keywords = ["aip2p", "p2p", "agent", "sdk"]
+
+[project.urls]
+Homepage = "https://aip2p.com"
