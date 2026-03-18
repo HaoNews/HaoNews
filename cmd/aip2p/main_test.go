@@ -166,6 +166,28 @@ func TestRunIdentityInitCreatesIdentityFile(t *testing.T) {
 	}
 }
 
+func TestIdentitySummaryForSavedIdentityAddsBackupNoticeWithoutSecrets(t *testing.T) {
+	t.Parallel()
+
+	identity, err := aip2p.NewHDMasterIdentity("agent://news/root-01", "agent://alice", "", time.Now().UTC())
+	if err != nil {
+		t.Fatalf("NewHDMasterIdentity error = %v", err)
+	}
+	summary := identitySummaryForSavedIdentity(identity, "/tmp/alice.json")
+	if got := summary["backup_notice"]; got != identityOfflineBackupNotice {
+		t.Fatalf("backup_notice = %#v", got)
+	}
+	if got := summary["sensitive_material_file"]; got != "/tmp/alice.json" {
+		t.Fatalf("sensitive_material_file = %#v", got)
+	}
+	if _, ok := summary["mnemonic"]; ok {
+		t.Fatal("summary unexpectedly exposed mnemonic")
+	}
+	if _, ok := summary["private_key"]; ok {
+		t.Fatal("summary unexpectedly exposed private key")
+	}
+}
+
 func TestRunPublishWritesSignedMessage(t *testing.T) {
 	t.Parallel()
 
@@ -267,6 +289,68 @@ func TestRunIdentityCreateHDAndDerive(t *testing.T) {
 	}
 	if child.DerivationPath == "" {
 		t.Fatal("expected child derivation path")
+	}
+}
+
+func TestResolveRecoveryMnemonicFromFile(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	mnemonicPath := filepath.Join(root, "mnemonic.txt")
+	want := "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
+	if err := os.WriteFile(mnemonicPath, []byte("\n"+want+"\n"), 0o600); err != nil {
+		t.Fatalf("WriteFile error = %v", err)
+	}
+	got, err := resolveRecoveryMnemonic("", mnemonicPath, false, strings.NewReader(""))
+	if err != nil {
+		t.Fatalf("resolveRecoveryMnemonic error = %v", err)
+	}
+	if got != want {
+		t.Fatalf("mnemonic = %q, want %q", got, want)
+	}
+}
+
+func TestResolveRecoveryMnemonicRejectsLegacyFlag(t *testing.T) {
+	t.Parallel()
+
+	_, err := resolveRecoveryMnemonic("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about", "", false, strings.NewReader(""))
+	if err == nil {
+		t.Fatal("expected legacy mnemonic flag to be rejected")
+	}
+	if !strings.Contains(err.Error(), "--mnemonic") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestRunIdentityRecoverFromMnemonicFile(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	mnemonicPath := filepath.Join(root, "mnemonic.txt")
+	output := filepath.Join(root, "alice.json")
+	mnemonic := "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
+	if err := os.WriteFile(mnemonicPath, []byte(mnemonic+"\n"), 0o600); err != nil {
+		t.Fatalf("WriteFile error = %v", err)
+	}
+	if err := run([]string{
+		"identity",
+		"recover",
+		"--agent-id", "agent://news/root-01",
+		"--author", "agent://alice",
+		"--mnemonic-file", mnemonicPath,
+		"--out", output,
+	}); err != nil {
+		t.Fatalf("run(identity recover) error = %v", err)
+	}
+	identity, err := aip2p.LoadAgentIdentity(output)
+	if err != nil {
+		t.Fatalf("LoadAgentIdentity error = %v", err)
+	}
+	if !identity.HDEnabled {
+		t.Fatal("expected recovered HD identity")
+	}
+	if identity.Mnemonic != mnemonic {
+		t.Fatal("expected recovered file to store mnemonic")
 	}
 }
 

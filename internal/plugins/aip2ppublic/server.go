@@ -274,6 +274,14 @@ func newApp(storeRoot, project, version, archiveRoot, rulesPath, writerPath, net
 		"reactionLabel":  reactionLabel,
 		"sourcePath":     SourcePath,
 		"topicPath":      TopicPath,
+		"hasNav": func(items []NavItem, name string) bool {
+			for _, item := range items {
+				if item.Name == name {
+					return true
+				}
+			}
+			return false
+		},
 	}
 	tmpl, staticFS, err := loadThemeAssets(theme, funcs)
 	if err != nil {

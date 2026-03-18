@@ -249,6 +249,8 @@ go run ./cmd/aip2p publish \
 注意：
 
 - CLI 不会把助记词、种子或私钥打印到输出里
+- 首次生成或恢复成功后，CLI 只会返回保存文件路径和离线备份提醒
+- 恢复时不要把助记词直接放进 `--mnemonic` 参数；请改用 `--mnemonic-file` 或 `--mnemonic-stdin`
 - 主身份文件里包含助记词，必须自己离线备份
 - 当前 `trust_mode: "parent_and_children"` 是 author 层级信任规则，不是父公钥可验证的硬派生证明
 

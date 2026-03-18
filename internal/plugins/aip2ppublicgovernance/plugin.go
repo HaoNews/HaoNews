@@ -28,7 +28,7 @@ func (Plugin) Build(_ context.Context, cfg apphost.Config, theme apphost.WebThem
 		cfg.WriterPolicyPath,
 		cfg.NetPath,
 		theme,
-		newsplugin.GovernanceOnlyAppOptions(),
+		newsplugin.OptionsForPlugins(newsplugin.GovernanceOnlyAppOptions(), cfg),
 	)
 	if err != nil {
 		return nil, err

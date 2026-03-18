@@ -22,7 +22,7 @@
           <div class="hero-actions">
             <a class="button-link" href="/sources">Browse sources</a>
             <a class="button-link button-link-muted" href="/topics">Browse topics</a>
-            <a class="button-link button-link-muted" href="/archive">Markdown archive</a>
+            {{if hasNav .PageNav "Archive"}}<a class="button-link button-link-muted" href="/archive">Markdown archive</a>{{end}}
             <a class="button-link button-link-muted" href="/api/feed">JSON API</a>
           </div>
         </div>

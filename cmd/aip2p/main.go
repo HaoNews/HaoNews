@@ -6,6 +6,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"os/signal"
@@ -27,6 +28,8 @@ import (
 type boolFlag interface {
 	IsBoolFlag() bool
 }
+
+const identityOfflineBackupNotice = "Sensitive signing material was saved to the identity file. Back it up offline and do not share this file."
 
 func main() {
 	if err := run(os.Args[1:]); err != nil {
@@ -204,14 +207,14 @@ func runIdentityInit(args []string) error {
 	if err := aip2p.SaveAgentIdentity(outputPath, identity); err != nil {
 		return err
 	}
-	return writeJSON(map[string]any{
+	return writeJSON(addIdentityBackupNotice(map[string]any{
 		"agent_id":   identity.AgentID,
 		"author":     identity.Author,
 		"key_type":   identity.KeyType,
 		"public_key": identity.PublicKey,
 		"created_at": identity.CreatedAt,
 		"file":       outputPath,
-	})
+	}, outputPath))
 }
 
 func runIdentityCreateHD(args []string) error {
@@ -243,7 +246,7 @@ func runIdentityCreateHD(args []string) error {
 	if err := aip2p.SaveAgentIdentity(outputPath, identity); err != nil {
 		return err
 	}
-	return writeJSON(identitySummary(identity, outputPath))
+	return writeJSON(identitySummaryForSavedIdentity(identity, outputPath))
 }
 
 func runIdentityRecover(args []string) error {
@@ -251,10 +254,16 @@ func runIdentityRecover(args []string) error {
 	fs.SetOutput(os.Stderr)
 	agentID := fs.String("agent-id", "", "stable agent id")
 	author := fs.String("author", "", "root author for this HD identity")
-	mnemonic := fs.String("mnemonic", "", "BIP39 mnemonic to recover")
+	mnemonic := fs.String("mnemonic", "", "deprecated insecure input; use --mnemonic-file or --mnemonic-stdin")
+	mnemonicFile := fs.String("mnemonic-file", "", "path to a file that contains the BIP39 mnemonic")
+	mnemonicStdin := fs.Bool("mnemonic-stdin", false, "read the BIP39 mnemonic from stdin")
 	out := fs.String("out", "", "identity file output path; defaults to ~/.aip2p-public/identities/<sanitized-author>.json")
 	force := fs.Bool("force", false, "overwrite output file if it exists")
 	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	mnemonicValue, err := resolveRecoveryMnemonic(*mnemonic, *mnemonicFile, *mnemonicStdin, os.Stdin)
+	if err != nil {
 		return err
 	}
 	outputPath, err := defaultIdentityOutputPath(*author, *out)
@@ -269,14 +278,14 @@ func runIdentityRecover(args []string) error {
 	if err := os.MkdirAll(filepath.Dir(outputPath), 0o755); err != nil {
 		return err
 	}
-	identity, err := aip2p.RecoverHDIdentity(*agentID, *author, *mnemonic, time.Now().UTC())
+	identity, err := aip2p.RecoverHDIdentity(*agentID, *author, mnemonicValue, time.Now().UTC())
 	if err != nil {
 		return err
 	}
 	if err := aip2p.SaveAgentIdentity(outputPath, identity); err != nil {
 		return err
 	}
-	return writeJSON(identitySummary(identity, outputPath))
+	return writeJSON(identitySummaryForSavedIdentity(identity, outputPath))
 }
 
 func runIdentityDerive(args []string) error {
@@ -1109,6 +1118,58 @@ func identitySummary(identity aip2p.AgentIdentity, path string) map[string]any {
 		"parent_public_key":    identity.ParentPublicKey,
 		"has_signing_material": strings.TrimSpace(identity.PrivateKey) != "" || strings.TrimSpace(identity.Mnemonic) != "",
 	}
+}
+
+func identitySummaryForSavedIdentity(identity aip2p.AgentIdentity, path string) map[string]any {
+	return addIdentityBackupNotice(identitySummary(identity, path), path)
+}
+
+func addIdentityBackupNotice(summary map[string]any, path string) map[string]any {
+	summary["sensitive_material_file"] = path
+	summary["backup_notice"] = identityOfflineBackupNotice
+	return summary
+}
+
+func resolveRecoveryMnemonic(legacyMnemonic, mnemonicFile string, mnemonicStdin bool, stdin io.Reader) (string, error) {
+	if strings.TrimSpace(legacyMnemonic) != "" {
+		return "", errors.New("using --mnemonic is disabled because it can leak secrets via shell history; use --mnemonic-file or --mnemonic-stdin")
+	}
+	sources := 0
+	if strings.TrimSpace(mnemonicFile) != "" {
+		sources++
+	}
+	if mnemonicStdin {
+		sources++
+	}
+	if sources == 0 {
+		return "", errors.New("mnemonic input is required; use --mnemonic-file or --mnemonic-stdin")
+	}
+	if sources > 1 {
+		return "", errors.New("use exactly one mnemonic source: --mnemonic-file or --mnemonic-stdin")
+	}
+	if strings.TrimSpace(mnemonicFile) != "" {
+		data, err := os.ReadFile(strings.TrimSpace(mnemonicFile))
+		if err != nil {
+			return "", err
+		}
+		value := strings.TrimSpace(string(data))
+		if value == "" {
+			return "", errors.New("mnemonic file is empty")
+		}
+		return value, nil
+	}
+	if stdin == nil {
+		return "", errors.New("stdin reader is not available")
+	}
+	data, err := io.ReadAll(stdin)
+	if err != nil {
+		return "", err
+	}
+	value := strings.TrimSpace(string(data))
+	if value == "" {
+		return "", errors.New("mnemonic stdin input is empty")
+	}
+	return value, nil
 }
 
 func identityMatchesParentFilter(identity aip2p.AgentIdentity, parent string) bool {

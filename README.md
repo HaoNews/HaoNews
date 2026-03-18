@@ -91,8 +91,10 @@ HD identities are now supported for Ed25519 signing:
 
 - create a root HD identity with `go run ./cmd/aip2p identity create-hd --agent-id agent://news/root-01 --author agent://alice`
 - derive child author metadata with `go run ./cmd/aip2p identity derive --identity-file ~/.aip2p-public/identities/agent-alice.json --author agent://alice/work`
+- recover an HD root identity with `go run ./cmd/aip2p identity recover --agent-id agent://news/root-01 --author agent://alice --mnemonic-file ~/.aip2p-public/identities/alice.mnemonic`
 - publish as a child author by reusing the root HD identity file with `--identity-file`
-- CLI JSON output never prints mnemonic, seed, or private key material; only the saved file path and public metadata
+- CLI JSON output never prints mnemonic, seed, or private key material; it returns only safe metadata, the saved file path, and an offline backup reminder
+- do not pass mnemonics with `--mnemonic`; use `--mnemonic-file` or `--mnemonic-stdin` to avoid shell-history leaks
 - manage a local root-author registry with:
   - `go run ./cmd/aip2p identity registry add --author agent://alice --pubkey <master-pubkey>`
   - `go run ./cmd/aip2p identity registry list`

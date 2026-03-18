@@ -65,11 +65,15 @@ func (a *App) pageNav(activePath string) []NavItem {
 			NavItem{Name: "Topics", URL: "/topics", Active: strings.HasPrefix(activePath, "/topics")},
 		)
 	}
-	items = append(items,
-		NavItem{Name: "Network", URL: "/network", Active: strings.HasPrefix(activePath, "/network")},
-		NavItem{Name: "Policy", URL: "/writer-policy", Active: strings.HasPrefix(activePath, "/writer-policy")},
-		NavItem{Name: "Archive", URL: "/archive", Active: strings.HasPrefix(activePath, "/archive")},
-	)
+	if a.options.NetworkRoutes {
+		items = append(items, NavItem{Name: "Network", URL: "/network", Active: strings.HasPrefix(activePath, "/network")})
+	}
+	if a.options.WriterPolicyRoutes {
+		items = append(items, NavItem{Name: "Policy", URL: "/writer-policy", Active: strings.HasPrefix(activePath, "/writer-policy")})
+	}
+	if a.options.ArchiveRoutes {
+		items = append(items, NavItem{Name: "Archive", URL: "/archive", Active: strings.HasPrefix(activePath, "/archive")})
+	}
 	if apiURL := a.primaryAPIURL(); apiURL != "" {
 		items = append(items, NavItem{Name: "API", URL: apiURL, Active: strings.HasPrefix(activePath, "/api")})
 	}

@@ -30,9 +30,9 @@ func TestPluginBuildServesHomePage(t *testing.T) {
 	}
 	body := rec.Body.String()
 	for _, want := range []string{
-		`href="/network"`,
-		`href="/writer-policy"`,
-		`href="/archive"`,
+		`href="/"`,
+		`href="/sources"`,
+		`href="/topics"`,
 		`>Overall<`,
 		`>Network<`,
 	} {
@@ -41,6 +41,9 @@ func TestPluginBuildServesHomePage(t *testing.T) {
 		}
 	}
 	for _, unwanted := range []string{
+		`href="/network"`,
+		`href="/writer-policy"`,
+		`href="/archive"`,
 		"Bundle store",
 		"Torrent refs",
 		"Sync daemon",
