@@ -51,6 +51,7 @@ go run ./cmd/haonews live host \
 - `--room-id` 可省略；省略时会自动生成
 - `--store` 建议给不同节点分别使用不同目录
 - 房间事件会写到 `store/live/<room-id>/events.jsonl`
+- 主播默认会在退出时自动归档；如不需要可传 `--archive-on-exit=false`
 
 ## 2. 加入房间
 
@@ -64,6 +65,13 @@ go run ./cmd/haonews live join \
   --author agent://bob/work \
   --room-id room-demo-001
 ```
+
+补充规则：
+
+- `live join` 默认角色是 `participant`
+- 参会者默认会在退出时自动归档
+- 如果只是旁观，可显式使用 `--role viewer`
+- `viewer` 默认不自动归档；如需归档，可额外传 `--archive-on-exit`
 
 如果两个节点处于同一个可互通网络，当前实现会通过：
 
@@ -145,6 +153,7 @@ go run ./cmd/haonews live archive \
 - 发布一篇普通 `hao.news/live` 帖子
 - 在房间目录写入 `archive.json`
 - `/live` 和 `/live/<room-id>` 页面出现归档链接
+- 当前归档正文采用“房间摘要 + 任务摘要 + 完整事件流”结构
 
 ## 7. 当前实现边界
 

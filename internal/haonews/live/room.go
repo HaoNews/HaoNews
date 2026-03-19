@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -31,6 +32,8 @@ type SessionOptions struct {
 	RoomID            string
 	Title             string
 	Channel           string
+	Role              string
+	AutoArchive       bool
 	HeartbeatInterval time.Duration
 }
 
@@ -47,8 +50,15 @@ type session struct {
 	topic     *pubsub.Topic
 	sub       *pubsub.Subscription
 
-	seq atomic.Uint64
-	mu  sync.Mutex
+	seq             atomic.Uint64
+	mu              sync.Mutex
+	remoteReady     chan struct{}
+	remoteReadyOnce sync.Once
+	role            string
+	autoArchive     bool
+	storeRoot       string
+	identityFile    string
+	author          string
 }
 
 func Host(ctx context.Context, opts SessionOptions, stdin io.Reader, stdout io.Writer) (RoomInfo, error) {
@@ -57,10 +67,13 @@ func Host(ctx context.Context, opts SessionOptions, stdin io.Reader, stdout io.W
 		return RoomInfo{}, err
 	}
 	defer s.close()
-	if err := s.publishControl(ctx, TypeJoin, LivePayload{Metadata: map[string]any{"role": "host"}}); err != nil {
+	if err := s.publishControl(ctx, TypeJoin, LivePayload{Metadata: map[string]any{"role": s.roleValue("host")}}); err != nil {
 		return RoomInfo{}, err
 	}
 	if err := s.run(ctx, stdin, stdout); err != nil {
+		return RoomInfo{}, err
+	}
+	if err := s.archiveOnExit(stdout); err != nil {
 		return RoomInfo{}, err
 	}
 	return s.info, nil
@@ -75,10 +88,13 @@ func Join(ctx context.Context, opts SessionOptions, stdin io.Reader, stdout io.W
 		return RoomInfo{}, err
 	}
 	defer s.close()
-	if err := s.publishControl(ctx, TypeJoin, LivePayload{Metadata: map[string]any{"role": "viewer"}}); err != nil {
+	if err := s.publishControl(ctx, TypeJoin, LivePayload{Metadata: map[string]any{"role": s.roleValue("participant")}}); err != nil {
 		return RoomInfo{}, err
 	}
 	if err := s.run(ctx, stdin, stdout); err != nil {
+		return RoomInfo{}, err
+	}
+	if err := s.archiveOnExit(stdout); err != nil {
 		return RoomInfo{}, err
 	}
 	return s.info, nil
@@ -101,10 +117,15 @@ func PublishTaskUpdate(ctx context.Context, opts SessionOptions, metadata map[st
 		return RoomInfo{}, err
 	}
 	defer s.close()
-	select {
-	case <-ctx.Done():
-	case <-time.After(3 * time.Second):
+	if err := s.publishControl(ctx, TypeJoin, LivePayload{Metadata: map[string]any{"role": "task_updater"}}); err != nil {
+		return RoomInfo{}, err
 	}
+	errCh := make(chan error, 1)
+	go s.receiveLoop(ctx, nil, errCh)
+	presenceCancel := s.startPresenceLoop(ctx, 2*time.Second)
+	defer presenceCancel()
+	s.waitForTopicPeers(ctx, 1, 6*time.Second)
+	s.waitForRemoteTraffic(ctx, 10*time.Second)
 	if err := s.publishControl(ctx, TypeTaskUpdate, LivePayload{
 		ContentType: "application/json",
 		Metadata:    metadata,
@@ -113,8 +134,9 @@ func PublishTaskUpdate(ctx context.Context, opts SessionOptions, metadata map[st
 	}
 	select {
 	case <-ctx.Done():
-	case <-time.After(3 * time.Second):
+	case <-time.After(4 * time.Second):
 	}
+	_ = s.publishControl(context.Background(), TypeLeave, LivePayload{})
 	return s.info, nil
 }
 
@@ -181,16 +203,22 @@ func startSession(ctx context.Context, opts SessionOptions) (*session, error) {
 		return nil, err
 	}
 	s := &session{
-		info:      info,
-		identity:  signingIdentity,
-		store:     store,
-		host:      h,
-		dht:       dhtRuntime,
-		mdns:      mdnsService,
-		discovery: discoveryRuntime,
-		pubsub:    ps,
-		topic:     topic,
-		sub:       sub,
+		info:         info,
+		identity:     signingIdentity,
+		store:        store,
+		host:         h,
+		dht:          dhtRuntime,
+		mdns:         mdnsService,
+		discovery:    discoveryRuntime,
+		pubsub:       ps,
+		topic:        topic,
+		sub:          sub,
+		remoteReady:  make(chan struct{}),
+		role:         normalizeRole(opts.Role),
+		autoArchive:  opts.AutoArchive,
+		storeRoot:    opts.StoreRoot,
+		identityFile: strings.TrimSpace(opts.IdentityFile),
+		author:       author,
 	}
 	if discoveryRuntime != nil {
 		discutil.Advertise(ctx, discoveryRuntime, GlobalNamespace)
@@ -274,6 +302,7 @@ func (s *session) receiveLoop(ctx context.Context, stdout io.Writer, errCh chan<
 		if err := VerifyMessage(event); err != nil {
 			continue
 		}
+		s.markRemoteReady()
 		if event.Type == TypeRoomAnnounce {
 			info := roomInfoFromAnnouncement(event)
 			if strings.TrimSpace(info.RoomID) != "" {
@@ -349,6 +378,130 @@ func (s *session) publishRaw(ctx context.Context, msg LiveMessage) error {
 		return err
 	}
 	return nil
+}
+
+func (s *session) waitForTopicPeers(ctx context.Context, minPeers int, waitFor time.Duration) bool {
+	if s == nil || s.topic == nil || minPeers <= 0 {
+		return false
+	}
+	if len(s.topic.ListPeers()) >= minPeers {
+		return true
+	}
+	waitCtx, cancel := context.WithTimeout(ctx, waitFor)
+	defer cancel()
+	ticker := time.NewTicker(200 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-waitCtx.Done():
+			return len(s.topic.ListPeers()) >= minPeers
+		case <-ticker.C:
+			if len(s.topic.ListPeers()) >= minPeers {
+				return true
+			}
+		}
+	}
+}
+
+func (s *session) startPresenceLoop(ctx context.Context, interval time.Duration) context.CancelFunc {
+	loopCtx, cancel := context.WithCancel(ctx)
+	go func() {
+		_ = s.publishControl(loopCtx, TypeHeartbeat, LivePayload{})
+		_ = s.publishRoomAnnouncement(loopCtx)
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-loopCtx.Done():
+				return
+			case <-ticker.C:
+				_ = s.publishControl(loopCtx, TypeHeartbeat, LivePayload{})
+				_ = s.publishRoomAnnouncement(loopCtx)
+			}
+		}
+	}()
+	return cancel
+}
+
+func (s *session) roleValue(defaultRole string) string {
+	if s == nil {
+		return strings.TrimSpace(defaultRole)
+	}
+	if strings.TrimSpace(s.role) != "" {
+		return strings.TrimSpace(s.role)
+	}
+	return strings.TrimSpace(defaultRole)
+}
+
+func (s *session) archiveOnExit(stdout io.Writer) error {
+	if s == nil || !s.autoArchive {
+		return nil
+	}
+	result, err := Archive(ArchiveOptions{
+		StoreRoot:    firstNonEmpty(strings.TrimSpace(s.storeRoot), filepath.Dir(filepath.Dir(s.store.Root))),
+		IdentityFile: strings.TrimSpace(s.identityFile),
+		Author:       firstNonEmpty(strings.TrimSpace(s.author), strings.TrimSpace(s.identity.Author)),
+		RoomID:       s.info.RoomID,
+		Channel:      s.info.Channel,
+	})
+	if err != nil {
+		if stdout != nil {
+			fmt.Fprintf(stdout, "[auto-archive] failed: %v\n", err)
+		}
+		return err
+	}
+	if stdout != nil {
+		fmt.Fprintf(stdout, "[auto-archive] %s -> %s\n", s.info.RoomID, result.ViewerURL)
+	}
+	return nil
+}
+
+func normalizeRole(role string) string {
+	switch strings.ToLower(strings.TrimSpace(role)) {
+	case "":
+		return ""
+	case "participant":
+		return "participant"
+	case "host":
+		return "host"
+	case "viewer":
+		return "viewer"
+	default:
+		return "participant"
+	}
+}
+
+func (s *session) waitForRemoteTraffic(ctx context.Context, waitFor time.Duration) bool {
+	if s == nil || s.remoteReady == nil {
+		return false
+	}
+	select {
+	case <-s.remoteReady:
+		return true
+	default:
+	}
+	waitCtx, cancel := context.WithTimeout(ctx, waitFor)
+	defer cancel()
+	select {
+	case <-waitCtx.Done():
+		select {
+		case <-s.remoteReady:
+			return true
+		default:
+			return false
+		}
+	case <-s.remoteReady:
+		return true
+	}
+}
+
+func (s *session) markRemoteReady() {
+	if s == nil || s.remoteReady == nil {
+		return
+	}
+	s.remoteReadyOnce.Do(func() {
+		close(s.remoteReady)
+	})
 }
 
 func (s *session) nextSeq() uint64 {

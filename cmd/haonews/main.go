@@ -233,6 +233,7 @@ func runLiveHost(args []string) error {
 	roomID := fs.String("room-id", "", "room id override")
 	title := fs.String("title", "", "live room title")
 	channel := fs.String("channel", "hao.news/live", "archive channel hint")
+	autoArchive := fs.Bool("archive-on-exit", true, "publish archive automatically when the host exits")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -249,6 +250,8 @@ func runLiveHost(args []string) error {
 		RoomID:       *roomID,
 		Title:        *title,
 		Channel:      *channel,
+		Role:         "host",
+		AutoArchive:  *autoArchive,
 	}, os.Stdin, os.Stdout)
 	if err != nil {
 		return err
@@ -266,6 +269,8 @@ func runLiveJoin(args []string) error {
 	roomID := fs.String("room-id", "", "room id to join")
 	title := fs.String("title", "", "local title override")
 	channel := fs.String("channel", "hao.news/live", "archive channel hint")
+	role := fs.String("role", "participant", "join role: participant or viewer")
+	autoArchive := fs.Bool("archive-on-exit", false, "publish archive automatically when this node exits")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -277,6 +282,7 @@ func runLiveJoin(args []string) error {
 	}
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
+	resolvedRole := normalizeLiveJoinRole(*role)
 	info, err := live.Join(ctx, live.SessionOptions{
 		StoreRoot:    *storeRoot,
 		NetPath:      *netPath,
@@ -285,11 +291,24 @@ func runLiveJoin(args []string) error {
 		RoomID:       *roomID,
 		Title:        *title,
 		Channel:      *channel,
+		Role:         resolvedRole,
+		AutoArchive:  resolvedRole != "viewer" || *autoArchive,
 	}, os.Stdin, os.Stdout)
 	if err != nil {
 		return err
 	}
 	return writeJSON(info)
+}
+
+func normalizeLiveJoinRole(role string) string {
+	switch strings.ToLower(strings.TrimSpace(role)) {
+	case "", "participant":
+		return "participant"
+	case "viewer":
+		return "viewer"
+	default:
+		return "participant"
+	}
 }
 
 func runLiveList(args []string) error {
@@ -381,7 +400,7 @@ func runLiveTaskUpdate(args []string) error {
 	if len(metadata) == 0 {
 		return errors.New("at least one task-update field is required")
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
 	defer cancel()
 	info, err := live.PublishTaskUpdate(ctx, live.SessionOptions{
 		StoreRoot:    *storeRoot,

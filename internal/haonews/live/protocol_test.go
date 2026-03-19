@@ -1,6 +1,7 @@
 package live
 
 import (
+	"context"
 	"strings"
 	"testing"
 	"time"
@@ -246,5 +247,17 @@ func TestRoomInfoFromAnnouncement(t *testing.T) {
 	})
 	if info.RoomID != "room-announce" || info.Title != "Live Room" || info.Creator != "agent://pc75/openclaw01" {
 		t.Fatalf("room info = %#v", info)
+	}
+}
+
+func TestWaitForTopicPeersWithoutTopic(t *testing.T) {
+	s := &session{}
+	start := time.Now()
+	ok := s.waitForTopicPeers(context.Background(), 1, 20*time.Millisecond)
+	if ok {
+		t.Fatalf("waitForTopicPeers() = true, want false")
+	}
+	if time.Since(start) > 100*time.Millisecond {
+		t.Fatalf("waitForTopicPeers took too long without topic")
 	}
 }

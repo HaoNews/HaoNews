@@ -2,6 +2,8 @@ package live
 
 import (
 	"fmt"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -103,19 +105,251 @@ func Archive(opts ArchiveOptions) (ArchiveResult, error) {
 
 func buildArchiveBody(info RoomInfo, events []LiveMessage) string {
 	var b strings.Builder
+	startAt, endAt := archiveEventRange(events)
+	participants := archiveParticipants(events)
+	taskSummaries := archiveTaskSummaries(events)
+	messageCount := archiveCountByType(events, TypeMessage)
+	taskUpdateCount := archiveCountByType(events, TypeTaskUpdate)
+
 	b.WriteString("# Live 房间归档\n\n")
+	b.WriteString("## 房间摘要\n\n")
 	fmt.Fprintf(&b, "- 房间 ID：`%s`\n", info.RoomID)
 	fmt.Fprintf(&b, "- 标题：%s\n", firstNonEmpty(info.Title, "未命名房间"))
 	fmt.Fprintf(&b, "- 创建者：`%s`\n", info.Creator)
 	fmt.Fprintf(&b, "- 创建时间：%s\n", info.CreatedAt)
-	fmt.Fprintf(&b, "- 事件数：%d\n\n", len(events))
-	b.WriteString("## 事件流\n\n")
+	fmt.Fprintf(&b, "- 事件数：%d\n", len(events))
+	if startAt != "" {
+		fmt.Fprintf(&b, "- 首条事件：%s\n", startAt)
+	}
+	if endAt != "" {
+		fmt.Fprintf(&b, "- 末条事件：%s\n", endAt)
+	}
+	fmt.Fprintf(&b, "- 普通消息数：%d\n", messageCount)
+	fmt.Fprintf(&b, "- 任务更新数：%d\n", taskUpdateCount)
+	if len(participants) > 0 {
+		fmt.Fprintf(&b, "- 参与者：%s\n", strings.Join(participants, "、"))
+	}
+	b.WriteString("\n")
+
+	if len(taskSummaries) > 0 {
+		b.WriteString("## 任务摘要\n\n")
+		for _, task := range taskSummaries {
+			fmt.Fprintf(&b, "- 任务 `%s`", task.TaskID)
+			if task.Description != "" {
+				fmt.Fprintf(&b, "：%s", task.Description)
+			}
+			b.WriteString("\n")
+			if task.Status != "" {
+				fmt.Fprintf(&b, "  - 当前状态：%s\n", task.Status)
+			}
+			if task.AssignedTo != "" {
+				fmt.Fprintf(&b, "  - 负责人：%s\n", task.AssignedTo)
+			}
+			if task.Progress != "" {
+				fmt.Fprintf(&b, "  - 当前进度：%s\n", task.Progress)
+			}
+			if task.UpdateCount > 0 {
+				fmt.Fprintf(&b, "  - 更新次数：%d\n", task.UpdateCount)
+			}
+			if task.LastSender != "" {
+				fmt.Fprintf(&b, "  - 最近更新者：%s\n", task.LastSender)
+			}
+			if task.LastUpdatedAt != "" {
+				fmt.Fprintf(&b, "  - 最近更新时间：%s\n", task.LastUpdatedAt)
+			}
+		}
+		b.WriteString("\n")
+	}
+
+	b.WriteString("## 完整事件流\n\n")
 	for _, event := range events {
 		content := strings.TrimSpace(event.Payload.Content)
 		if content == "" {
 			content = "-"
 		}
 		fmt.Fprintf(&b, "- [%s] `%s` `%s`: %s\n", event.Timestamp, event.Type, event.Sender, content)
+		if event.Type == TypeTaskUpdate {
+			task := archiveTaskSummaryFromMetadata(event.Payload.Metadata)
+			if task != nil {
+				if task.TaskID != "" {
+					fmt.Fprintf(&b, "  - task_id=%s\n", task.TaskID)
+				}
+				if task.Status != "" {
+					fmt.Fprintf(&b, "  - status=%s\n", task.Status)
+				}
+				if task.AssignedTo != "" {
+					fmt.Fprintf(&b, "  - assigned_to=%s\n", task.AssignedTo)
+				}
+				if task.Progress != "" {
+					fmt.Fprintf(&b, "  - progress=%s\n", task.Progress)
+				}
+				if task.Description != "" {
+					fmt.Fprintf(&b, "  - description=%s\n", task.Description)
+				}
+			}
+		}
 	}
 	return strings.TrimSpace(b.String()) + "\n"
+}
+
+type archiveTaskSummary struct {
+	TaskID        string
+	Status        string
+	Description   string
+	AssignedTo    string
+	Progress      string
+	UpdateCount   int
+	LastSender    string
+	LastUpdatedAt string
+}
+
+func archiveEventRange(events []LiveMessage) (string, string) {
+	if len(events) == 0 {
+		return "", ""
+	}
+	return strings.TrimSpace(events[0].Timestamp), strings.TrimSpace(events[len(events)-1].Timestamp)
+}
+
+func archiveParticipants(events []LiveMessage) []string {
+	seen := make(map[string]struct{})
+	participants := make([]string, 0)
+	for _, event := range events {
+		sender := strings.TrimSpace(event.Sender)
+		if sender == "" {
+			continue
+		}
+		if _, ok := seen[sender]; ok {
+			continue
+		}
+		seen[sender] = struct{}{}
+		participants = append(participants, sender)
+	}
+	sort.Strings(participants)
+	return participants
+}
+
+func archiveCountByType(events []LiveMessage, messageType string) int {
+	count := 0
+	for _, event := range events {
+		if strings.TrimSpace(event.Type) == strings.TrimSpace(messageType) {
+			count++
+		}
+	}
+	return count
+}
+
+func archiveTaskSummaries(events []LiveMessage) []archiveTaskSummary {
+	index := make(map[string]*archiveTaskSummary)
+	order := make([]string, 0)
+	for _, event := range events {
+		task := archiveTaskSummaryFromMetadata(event.Payload.Metadata)
+		if task == nil || strings.TrimSpace(task.TaskID) == "" {
+			continue
+		}
+		item, ok := index[task.TaskID]
+		if !ok {
+			item = &archiveTaskSummary{TaskID: task.TaskID}
+			index[task.TaskID] = item
+			order = append(order, task.TaskID)
+		}
+		item.UpdateCount++
+		item.Status = archiveFirstNonEmpty(task.Status, item.Status)
+		item.Description = archiveFirstNonEmpty(task.Description, item.Description)
+		item.AssignedTo = archiveFirstNonEmpty(task.AssignedTo, item.AssignedTo)
+		item.Progress = archiveFirstNonEmpty(task.Progress, item.Progress)
+		item.LastSender = archiveFirstNonEmpty(strings.TrimSpace(event.Sender), item.LastSender)
+		item.LastUpdatedAt = archiveFirstNonEmpty(strings.TrimSpace(event.Timestamp), item.LastUpdatedAt)
+	}
+	summaries := make([]archiveTaskSummary, 0, len(order))
+	for _, key := range order {
+		summaries = append(summaries, *index[key])
+	}
+	sort.Slice(summaries, func(i, j int) bool {
+		return summaries[i].LastUpdatedAt > summaries[j].LastUpdatedAt
+	})
+	return summaries
+}
+
+func archiveTaskSummaryFromMetadata(metadata map[string]any) *archiveTaskSummary {
+	if len(metadata) == 0 {
+		return nil
+	}
+	taskID := archiveMetadataString(metadata, "task_id")
+	status := archiveMetadataString(metadata, "status")
+	description := archiveMetadataString(metadata, "description")
+	assignedTo := archiveMetadataJoined(metadata, "assigned_to")
+	progress := archiveMetadataProgress(metadata, "progress")
+	if taskID == "" && status == "" && description == "" && assignedTo == "" && progress == "" {
+		return nil
+	}
+	return &archiveTaskSummary{
+		TaskID:      taskID,
+		Status:      status,
+		Description: description,
+		AssignedTo:  assignedTo,
+		Progress:    progress,
+	}
+}
+
+func archiveMetadataString(metadata map[string]any, key string) string {
+	value, ok := metadata[key]
+	if !ok || value == nil {
+		return ""
+	}
+	return strings.TrimSpace(fmt.Sprint(value))
+}
+
+func archiveMetadataJoined(metadata map[string]any, key string) string {
+	value, ok := metadata[key]
+	if !ok || value == nil {
+		return ""
+	}
+	switch typed := value.(type) {
+	case []string:
+		return strings.Join(typed, ", ")
+	case []any:
+		values := make([]string, 0, len(typed))
+		for _, item := range typed {
+			text := strings.TrimSpace(fmt.Sprint(item))
+			if text != "" {
+				values = append(values, text)
+			}
+		}
+		return strings.Join(values, ", ")
+	default:
+		return strings.TrimSpace(fmt.Sprint(value))
+	}
+}
+
+func archiveMetadataProgress(metadata map[string]any, key string) string {
+	value, ok := metadata[key]
+	if !ok || value == nil {
+		return ""
+	}
+	switch typed := value.(type) {
+	case int:
+		return strconv.Itoa(typed) + "%"
+	case int64:
+		return strconv.FormatInt(typed, 10) + "%"
+	case float64:
+		return strconv.FormatFloat(typed, 'f', -1, 64) + "%"
+	default:
+		text := strings.TrimSpace(fmt.Sprint(value))
+		if text == "" {
+			return ""
+		}
+		if strings.HasSuffix(text, "%") {
+			return text
+		}
+		return text + "%"
+	}
+}
+
+func archiveFirstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return strings.TrimSpace(value)
+		}
+	}
+	return ""
 }
