@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"path/filepath"
@@ -23,6 +24,8 @@ import (
 	routingdisc "github.com/libp2p/go-libp2p/p2p/discovery/routing"
 	discutil "github.com/libp2p/go-libp2p/p2p/discovery/util"
 )
+
+var errSessionExitRequested = errors.New("live session exit requested")
 
 type SessionOptions struct {
 	StoreRoot         string
@@ -251,6 +254,10 @@ func (s *session) run(ctx context.Context, stdin io.Reader, stdout io.Writer) er
 			_ = s.publishControl(context.Background(), TypeLeave, LivePayload{})
 			return nil
 		case err := <-errCh:
+			if errors.Is(err, errSessionExitRequested) {
+				_ = s.publishControl(context.Background(), TypeLeave, LivePayload{})
+				return nil
+			}
 			if err != nil && err != io.EOF {
 				return err
 			}
@@ -277,14 +284,30 @@ func (s *session) stdinLoop(ctx context.Context, stdin io.Reader, errCh chan<- e
 		if line == "" {
 			continue
 		}
-		if err := s.publishMessage(ctx, line); err != nil {
+		exitRequested, err := s.handleInputLine(ctx, line)
+		if err != nil {
 			errCh <- err
+			return
+		}
+		if exitRequested {
+			errCh <- errSessionExitRequested
 			return
 		}
 	}
 	if err := scanner.Err(); err != nil {
 		errCh <- err
 	}
+}
+
+func (s *session) handleInputLine(ctx context.Context, line string) (bool, error) {
+	line = strings.TrimSpace(line)
+	if line == "" {
+		return false, nil
+	}
+	if isSessionExitCommand(line) {
+		return true, nil
+	}
+	return false, s.publishMessage(ctx, line)
 }
 
 func (s *session) receiveLoop(ctx context.Context, stdout io.Writer, errCh chan<- error) {
@@ -519,6 +542,15 @@ func normalizeRole(role string) string {
 		return "viewer"
 	default:
 		return "participant"
+	}
+}
+
+func isSessionExitCommand(line string) bool {
+	switch strings.ToLower(strings.TrimSpace(line)) {
+	case "/exit", "/quit":
+		return true
+	default:
+		return false
 	}
 }
 

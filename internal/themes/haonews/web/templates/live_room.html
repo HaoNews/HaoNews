@@ -58,10 +58,10 @@
         <section class="panel panel-inline">
           <p class="panel-label">参与者</p>
           {{if .Roster}}
-            <div class="facet-list">
+            <div class="facet-list-inline live-roster-chips">
               {{range .Roster}}
-                <div class="facet {{if .Online}}is-active{{end}}">
-                  <span>{{.Sender}}</span>
+                <div class="facet-chip live-roster-chip {{if .Online}}is-active{{end}}">
+                  <span class="live-roster-chip-id">{{.Sender}}</span>
                   <strong>{{if .Online}}在线{{else}}离线{{end}}</strong>
                 </div>
               {{end}}
