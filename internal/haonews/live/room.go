@@ -238,6 +238,8 @@ func startSession(ctx context.Context, opts SessionOptions) (*session, error) {
 func (s *session) run(ctx context.Context, stdin io.Reader, stdout io.Writer) error {
 	errCh := make(chan error, 2)
 	go s.receiveLoop(ctx, stdout, errCh)
+	_ = s.publishControl(ctx, TypeHeartbeat, LivePayload{})
+	_ = s.publishRoomAnnouncement(ctx)
 	go s.stdinLoop(ctx, stdin, errCh)
 
 	heartbeatEvery := 10 * time.Second
@@ -326,6 +328,9 @@ func (s *session) receiveLoop(ctx context.Context, stdout io.Writer, errCh chan<
 }
 
 func (s *session) publishMessage(ctx context.Context, content string) error {
+	if err := s.prepareForManualMessage(ctx); err != nil {
+		return err
+	}
 	msg, err := NewSignedMessage(s.identity, s.identity.Author, s.info.RoomID, TypeMessage, s.nextSeq(), 0, LivePayload{
 		Content:     content,
 		ContentType: "text/plain",
@@ -334,6 +339,23 @@ func (s *session) publishMessage(ctx context.Context, content string) error {
 		return err
 	}
 	return s.publishEvent(ctx, msg)
+}
+
+func (s *session) prepareForManualMessage(ctx context.Context) error {
+	if s == nil {
+		return nil
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	s.waitForTopicPeers(ctx, 1, 6*time.Second)
+	select {
+	case <-s.remoteReady:
+		return nil
+	default:
+	}
+	s.waitForRemoteTraffic(ctx, 8*time.Second)
+	return ctx.Err()
 }
 
 func (s *session) publishControl(ctx context.Context, messageType string, payload LivePayload) error {

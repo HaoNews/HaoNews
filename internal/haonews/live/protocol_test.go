@@ -181,6 +181,53 @@ func TestSaveArchiveResult(t *testing.T) {
 	}
 }
 
+func TestAppendEventSkipsImmediateDuplicate(t *testing.T) {
+	store, err := OpenLocalStore(t.TempDir())
+	if err != nil {
+		t.Fatalf("OpenLocalStore error = %v", err)
+	}
+	room := RoomInfo{
+		RoomID:    "room-dedupe",
+		Title:     "Dedupe Test",
+		Creator:   "agent://pc75/openclaw01",
+		CreatedAt: time.Now().UTC().Format(time.RFC3339),
+	}
+	if err := store.SaveRoom(room); err != nil {
+		t.Fatalf("SaveRoom error = %v", err)
+	}
+	event := LiveMessage{
+		Protocol:     ProtocolVersion,
+		Type:         TypeMessage,
+		RoomID:       room.RoomID,
+		Sender:       room.Creator,
+		SenderPubKey: strings.Repeat("a", 64),
+		Seq:          1,
+		Timestamp:    time.Now().UTC().Format(time.RFC3339),
+		Payload:      LivePayload{Content: "dedupe-check"},
+		Signature:    strings.Repeat("b", 128),
+	}
+	if err := store.AppendEvent(room.RoomID, event); err != nil {
+		t.Fatalf("first AppendEvent error = %v", err)
+	}
+	if err := store.AppendEvent(room.RoomID, event); err != nil {
+		t.Fatalf("second AppendEvent error = %v", err)
+	}
+	events, err := store.ReadEvents(room.RoomID)
+	if err != nil {
+		t.Fatalf("ReadEvents error = %v", err)
+	}
+	if len(events) != 1 {
+		t.Fatalf("len(events) = %d, want 1", len(events))
+	}
+	rooms, err := store.ListRooms()
+	if err != nil {
+		t.Fatalf("ListRooms error = %v", err)
+	}
+	if len(rooms) != 1 || rooms[0].EventCount != 1 {
+		t.Fatalf("rooms = %#v, want single event indexed", rooms)
+	}
+}
+
 func TestSaveRoomPreservesIndexAndMergesInfo(t *testing.T) {
 	store, err := OpenLocalStore(t.TempDir())
 	if err != nil {

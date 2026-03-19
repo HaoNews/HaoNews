@@ -146,6 +146,21 @@ func (w *AnnouncementWatcher) handleEvent(event LiveMessage) error {
 				_, _ = haonews.QueueSyncRefForStore(filepath.Dir(w.store.Root), ref)
 			}
 		}
+	case TypeJoin, TypeLeave, TypeHeartbeat, TypeMessage, TypeTaskUpdate:
+		if strings.TrimSpace(event.RoomID) == "" {
+			return nil
+		}
+		info := RoomInfo{
+			RoomID:    strings.TrimSpace(event.RoomID),
+			Creator:   strings.TrimSpace(event.Sender),
+			CreatedAt: strings.TrimSpace(event.Timestamp),
+		}
+		if err := w.store.SaveRoom(info); err != nil {
+			return err
+		}
+		if err := w.store.AppendEvent(info.RoomID, event); err != nil {
+			return err
+		}
 	}
 	return nil
 }

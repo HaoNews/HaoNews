@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -121,7 +122,11 @@ func (s *LocalStore) AppendEvent(roomID string, msg LiveMessage) error {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
-	file, err := os.OpenFile(filepath.Join(dir, "events.jsonl"), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
+	path := filepath.Join(dir, "events.jsonl")
+	if duplicate, err := isImmediateDuplicateEvent(path, msg); err == nil && duplicate {
+		return nil
+	}
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
 	if err != nil {
 		return err
 	}
@@ -134,6 +139,62 @@ func (s *LocalStore) AppendEvent(roomID string, msg LiveMessage) error {
 		return err
 	}
 	return s.updateRoomIndex(roomID, msg)
+}
+
+func isImmediateDuplicateEvent(path string, msg LiveMessage) (bool, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return false, nil
+		}
+		return false, err
+	}
+	defer file.Close()
+	info, err := file.Stat()
+	if err != nil {
+		return false, err
+	}
+	if info.Size() == 0 {
+		return false, nil
+	}
+	const tailBytes int64 = 8192
+	size := info.Size()
+	readSize := size
+	if readSize > tailBytes {
+		readSize = tailBytes
+	}
+	buf := make([]byte, readSize)
+	if _, err := file.ReadAt(buf, size-readSize); err != nil && !errors.Is(err, io.EOF) {
+		return false, err
+	}
+	lines := strings.Split(strings.TrimSpace(string(buf)), "\n")
+	for index := len(lines) - 1; index >= 0; index-- {
+		line := strings.TrimSpace(lines[index])
+		if line == "" {
+			continue
+		}
+		var last LiveMessage
+		if err := json.Unmarshal([]byte(line), &last); err != nil {
+			return false, nil
+		}
+		return liveEventKey(last) == liveEventKey(msg), nil
+	}
+	return false, nil
+}
+
+func liveEventKey(msg LiveMessage) string {
+	if signature := strings.TrimSpace(msg.Signature); signature != "" {
+		return "sig:" + signature
+	}
+	return strings.Join([]string{
+		strings.TrimSpace(msg.RoomID),
+		strings.TrimSpace(msg.Type),
+		strings.TrimSpace(msg.Sender),
+		strings.TrimSpace(msg.SenderPubKey),
+		fmt.Sprintf("%d", msg.Seq),
+		strings.TrimSpace(msg.Timestamp),
+		strings.TrimSpace(msg.Payload.Content),
+	}, "\x00")
 }
 
 func (s *LocalStore) ReadEvents(roomID string) ([]LiveMessage, error) {

@@ -31,6 +31,8 @@ type liveRoomPageData struct {
 	TaskByAssignee []liveTaskGroupView
 	Roster         []live.RosterEntry
 	Archive        *live.ArchiveRecord
+	ShowHeartbeats bool
+	AutoRefresh    bool
 }
 
 type liveEventView struct {

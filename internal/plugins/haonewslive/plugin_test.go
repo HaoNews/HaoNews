@@ -91,6 +91,17 @@ func TestPluginBuildServesLiveRoomDetails(t *testing.T) {
 	}
 	if err := store.AppendEvent(room.RoomID, live.LiveMessage{
 		Protocol:     live.ProtocolVersion,
+		Type:         live.TypeHeartbeat,
+		RoomID:       room.RoomID,
+		Sender:       room.Creator,
+		SenderPubKey: strings.Repeat("a", 64),
+		Seq:          0,
+		Timestamp:    "2026-03-19T00:00:05Z",
+	}); err != nil {
+		t.Fatalf("AppendEvent heartbeat error = %v", err)
+	}
+	if err := store.AppendEvent(room.RoomID, live.LiveMessage{
+		Protocol:     live.ProtocolVersion,
 		Type:         live.TypeTaskUpdate,
 		RoomID:       room.RoomID,
 		Sender:       room.Creator,
@@ -138,6 +149,12 @@ func TestPluginBuildServesLiveRoomDetails(t *testing.T) {
 	}
 	if !strings.Contains(body, "任务分组") || !strings.Contains(body, "按状态") || !strings.Contains(body, "按负责人") {
 		t.Fatalf("expected task group panels in body, got %q", body)
+	}
+	if strings.Contains(body, "在线心跳") {
+		t.Fatalf("expected heartbeats hidden by default, got %q", body)
+	}
+	if !strings.Contains(body, "显示心跳") || !strings.Contains(body, "关闭自动刷新") {
+		t.Fatalf("expected spectator controls in body, got %q", body)
 	}
 }
 
@@ -195,6 +212,51 @@ func TestPluginBuildServesLiveRoomAPIIncludesTaskSummaries(t *testing.T) {
 	}
 	if !strings.Contains(body, "\"task_by_status\"") || !strings.Contains(body, "\"task_by_assignee\"") {
 		t.Fatalf("expected grouped task fields in API body, got %q", body)
+	}
+}
+
+func TestPluginBuildServesLiveRoomAPIIncludesHeartbeatsWhenRequested(t *testing.T) {
+	t.Parallel()
+
+	site, root := buildLiveSite(t)
+	store, err := live.OpenLocalStore(filepath.Join(root, "store"))
+	if err != nil {
+		t.Fatalf("OpenLocalStore error = %v", err)
+	}
+	room := live.RoomInfo{
+		RoomID:    "room-5",
+		Title:     "Heartbeat API",
+		Creator:   "agent://pc75/openclaw01",
+		CreatedAt: "2026-03-19T00:00:00Z",
+		Channel:   "hao.news/live",
+	}
+	if err := store.SaveRoom(room); err != nil {
+		t.Fatalf("SaveRoom error = %v", err)
+	}
+	if err := store.AppendEvent(room.RoomID, live.LiveMessage{
+		Protocol:     live.ProtocolVersion,
+		Type:         live.TypeHeartbeat,
+		RoomID:       room.RoomID,
+		Sender:       room.Creator,
+		SenderPubKey: strings.Repeat("a", 64),
+		Seq:          1,
+		Timestamp:    "2026-03-19T00:00:10Z",
+	}); err != nil {
+		t.Fatalf("AppendEvent error = %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/live/rooms/"+room.RoomID+"?show_heartbeats=1", nil)
+	rec := httptest.NewRecorder()
+	site.Handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, "\"show_heartbeats\": true") {
+		t.Fatalf("expected show_heartbeats flag in API body, got %q", body)
+	}
+	if !strings.Contains(body, "\"type\": \"heartbeat\"") {
+		t.Fatalf("expected heartbeat event in API body, got %q", body)
 	}
 }
 

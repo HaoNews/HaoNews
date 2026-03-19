@@ -5,6 +5,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>好牛Ai Live 房间</title>
+  {{if .AutoRefresh}}<meta http-equiv="refresh" content="5">{{end}}
   <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
@@ -70,6 +71,15 @@
           {{end}}
         </section>
 
+        <section class="panel panel-inline">
+          <p class="panel-label">旁观模式</p>
+          <div class="facet-list-inline">
+            <a class="facet-chip" href="/live/{{.Room.RoomID}}?show_heartbeats={{if .ShowHeartbeats}}0{{else}}1{{end}}&refresh={{if .AutoRefresh}}1{{else}}0{{end}}">{{if .ShowHeartbeats}}隐藏心跳{{else}}显示心跳{{end}}</a>
+            <a class="facet-chip" href="/live/{{.Room.RoomID}}?show_heartbeats={{if .ShowHeartbeats}}1{{else}}0{{end}}&refresh={{if .AutoRefresh}}0{{else}}1{{end}}">{{if .AutoRefresh}}关闭自动刷新{{else}}开启自动刷新{{end}}</a>
+          </div>
+          <p class="micro-copy">旁观者无需身份或公钥。页面默认每 5 秒刷新一次，且默认隐藏心跳。</p>
+        </section>
+
         {{if .TaskSummaries}}
           <section class="panel panel-inline">
             <p class="panel-label">任务分组</p>
@@ -117,10 +127,11 @@
         {{end}}
 
         {{if .EventViews}}
-          <section class="story-list">
-            {{range .EventViews}}
-              <article class="story-card">
-                <div class="story-card-main">
+          <section class="panel panel-inline">
+            <p class="panel-label">聊天记录</p>
+            <div class="live-event-window">
+              {{range .EventViews}}
+                <article class="live-event-item">
                   <div class="card-meta">
                     <span>{{.Type}}</span>
                     <span>{{.Timestamp}}</span>
@@ -148,14 +159,14 @@
                       {{end}}
                     </div>
                   {{end}}
-                </div>
-              </article>
-            {{end}}
+                </article>
+              {{end}}
+            </div>
           </section>
         {{else}}
           <section class="empty-state">
             <h2>暂无事件</h2>
-            <p>房间记录存在，但当前还没有可显示的事件。</p>
+            <p>{{if .ShowHeartbeats}}房间记录存在，但当前还没有可显示的事件。{{else}}当前没有非心跳事件；如需查看在线心跳，可切换到“显示心跳”。{{end}}</p>
           </section>
         {{end}}
       </main>

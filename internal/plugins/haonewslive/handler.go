@@ -69,6 +69,9 @@ func handleLiveRoom(app *newsplugin.App, store *live.LocalStore, roomID string, 
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	showHeartbeats := queryBool(r, "show_heartbeats", false)
+	autoRefresh := queryBool(r, "refresh", true)
+	filteredEvents := filterLiveEvents(events, showHeartbeats)
 	taskSummaries := buildTaskSummaries(events)
 	data := liveRoomPageData{
 		Project:        app.ProjectName(),
@@ -77,13 +80,15 @@ func handleLiveRoom(app *newsplugin.App, store *live.LocalStore, roomID string, 
 		NodeStatus:     app.NodeStatus(index),
 		Now:            time.Now(),
 		Room:           room,
-		Events:         events,
-		EventViews:     buildEventViews(events),
+		Events:         filteredEvents,
+		EventViews:     buildEventViews(filteredEvents),
 		TaskSummaries:  taskSummaries,
 		TaskByStatus:   groupTasksByStatus(taskSummaries),
 		TaskByAssignee: groupTasksByAssignee(taskSummaries),
 		Roster:         live.BuildRoster(events, time.Now().UTC(), 30*time.Second),
 		Archive:        archive,
+		ShowHeartbeats: showHeartbeats,
+		AutoRefresh:    autoRefresh,
 	}
 	if err := app.Templates().ExecuteTemplate(w, "live_room.html", data); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -119,16 +124,48 @@ func handleAPILiveRoom(store *live.LocalStore, roomID string, w http.ResponseWri
 		return
 	}
 	taskSummaries := buildTaskSummaries(events)
+	showHeartbeats := queryBool(r, "show_heartbeats", false)
+	filteredEvents := filterLiveEvents(events, showHeartbeats)
 	newsplugin.WriteJSON(w, http.StatusOK, map[string]any{
 		"room":             room,
-		"events":           events,
-		"event_views":      buildEventViews(events),
+		"events":           filteredEvents,
+		"event_views":      buildEventViews(filteredEvents),
 		"task_summaries":   taskSummaries,
 		"task_by_status":   groupTasksByStatus(taskSummaries),
 		"task_by_assignee": groupTasksByAssignee(taskSummaries),
 		"roster":           live.BuildRoster(events, time.Now().UTC(), 30*time.Second),
 		"archive":          archive,
+		"show_heartbeats":  showHeartbeats,
 	})
+}
+
+func filterLiveEvents(events []live.LiveMessage, showHeartbeats bool) []live.LiveMessage {
+	if showHeartbeats {
+		return events
+	}
+	filtered := make([]live.LiveMessage, 0, len(events))
+	for _, event := range events {
+		if strings.TrimSpace(event.Type) == live.TypeHeartbeat {
+			continue
+		}
+		filtered = append(filtered, event)
+	}
+	return filtered
+}
+
+func queryBool(r *http.Request, key string, defaultValue bool) bool {
+	if r == nil {
+		return defaultValue
+	}
+	raw := strings.TrimSpace(strings.ToLower(r.URL.Query().Get(key)))
+	switch raw {
+	case "1", "true", "yes", "on":
+		return true
+	case "0", "false", "no", "off":
+		return false
+	default:
+		return defaultValue
+	}
 }
 
 func formatCount(value int) string {

@@ -782,6 +782,29 @@ body.sidebar-collapsed .page-shell {
   text-decoration: none;
 }
 
+.live-event-window {
+  max-height: 52rem;
+  overflow-y: auto;
+  display: grid;
+  gap: 14px;
+  padding-right: 6px;
+}
+
+.live-event-item {
+  padding: 16px 18px;
+  border-radius: 18px;
+  background: var(--surface-alt);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-soft);
+}
+
+.live-event-item h2 {
+  margin: 8px 0 10px;
+  font-size: 18px;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
 .story-topline,
 .reaction-topline {
   display: flex;
