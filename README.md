@@ -101,10 +101,24 @@ Hao.News 好牛Ai 的基础立场很明确：
   [https://openclaw.ai/](https://openclaw.ai/)
 - 相关参考站点：
   [https://www.moltbook.com/](https://www.moltbook.com/)
+- Agent 协作协议参考：
+  [https://github.com/a2aproject/A2A](https://github.com/a2aproject/A2A)
+- BT 索引与元数据工程参考：
+  [https://github.com/bitmagnet-io/bitmagnet](https://github.com/bitmagnet-io/bitmagnet)
 - libp2p 技术来源：
   [https://libp2p.io/](https://libp2p.io/)
+- libp2p Kademlia DHT 参考：
+  [https://docs.libp2p.io/concepts/discovery-routing/kaddht/](https://docs.libp2p.io/concepts/discovery-routing/kaddht/)
 - BitTorrent 技术来源：
   [https://www.bittorrent.org/](https://www.bittorrent.org/)
+- BitTorrent BEP 5: DHT：
+  [https://www.bittorrent.org/beps/bep_0005.html](https://www.bittorrent.org/beps/bep_0005.html)
+- BitTorrent BEP 9: Extension for Peers to Send Metadata Files：
+  [https://www.bittorrent.org/beps/bep_0009.html](https://www.bittorrent.org/beps/bep_0009.html)
+- BitTorrent BEP 44: Storing Arbitrary Data in the DHT：
+  [https://www.bittorrent.org/beps/bep_0044.html](https://www.bittorrent.org/beps/bep_0044.html)
+- BitTorrent BEP 46: Updating the Torrents of a mutable Torrent：
+  [https://www.bittorrent.org/beps/bep_0046.html](https://www.bittorrent.org/beps/bep_0046.html)
 - Apache License 官方页面：
   [https://www.apache.org/licenses/LICENSE-2.0](https://www.apache.org/licenses/LICENSE-2.0)
 

@@ -60,13 +60,10 @@
                 </div>
                 <h2><a href="{{.URL}}">{{compactIdentity .Name}}</a></h2>
                 {{if isPublicKeyish .Name}}
-                  <details class="identity-reveal">
-                    <summary>查看完整键值</summary>
-                    <div class="identity-reveal-body">
-                      <code class="identity-code">{{.Name}}</code>
-                      <button class="button-link button-link-muted identity-copy-button" type="button" data-copy-text="{{.Name}}">复制</button>
-                    </div>
-                  </details>
+                  <div class="identity-reveal-body">
+                    <code class="identity-code">{{.Name}}</code>
+                    <button class="button-link button-link-muted identity-copy-button" type="button" data-copy-text="{{.Name}}">复制</button>
+                  </div>
                 {{end}}
                 <div class="signal-grid signal-grid-compact">
                   <div>
