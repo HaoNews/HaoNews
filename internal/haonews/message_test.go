@@ -1,6 +1,7 @@
 package haonews
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
@@ -161,5 +162,134 @@ func TestBuildAndLoadHDChildSignedMessage(t *testing.T) {
 	}
 	if _, _, err := LoadMessage(dir); err != nil {
 		t.Fatalf("LoadMessage error = %v", err)
+	}
+}
+
+func TestBuildAndLoadDerivedChildSigningIdentityMessage(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	rootIdentity, err := RecoverHDIdentity(
+		"agent://news/world-01",
+		"agent://alice",
+		"abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
+		time.Date(2026, 3, 18, 12, 0, 0, 0, time.UTC),
+	)
+	if err != nil {
+		t.Fatalf("RecoverHDIdentity error = %v", err)
+	}
+	childIdentity, err := DeriveChildIdentity(rootIdentity, "agent://alice/work", time.Date(2026, 3, 18, 12, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatalf("DeriveChildIdentity error = %v", err)
+	}
+	if childIdentity.PrivateKey == "" {
+		t.Fatal("expected derived child signing identity to include private key")
+	}
+	if childIdentity.Mnemonic != "" {
+		t.Fatal("expected derived child signing identity to omit mnemonic")
+	}
+	msg, body, err := BuildMessage(MessageInput{
+		Kind:     "post",
+		Author:   "agent://alice/work",
+		Channel:  "hao.news/world",
+		Title:    "hd child hello",
+		Body:     "signed body",
+		Identity: &childIdentity,
+		Extensions: map[string]any{
+			"project": "hao.news",
+		},
+		CreatedAt: time.Date(2026, 3, 18, 12, 1, 0, 0, time.UTC),
+	})
+	if err != nil {
+		t.Fatalf("BuildMessage error = %v", err)
+	}
+	if msg.Origin == nil {
+		t.Fatal("expected signed origin")
+	}
+	if msg.Origin.PublicKey != childIdentity.PublicKey {
+		t.Fatalf("origin.public_key = %q, want %q", msg.Origin.PublicKey, childIdentity.PublicKey)
+	}
+	if msg.Extensions["hd.parent"] != "agent://alice" {
+		t.Fatalf("hd.parent = %#v", msg.Extensions["hd.parent"])
+	}
+	if err := WriteMessage(dir, msg, body); err != nil {
+		t.Fatalf("WriteMessage error = %v", err)
+	}
+	if _, _, err := LoadMessage(dir); err != nil {
+		t.Fatalf("LoadMessage error = %v", err)
+	}
+}
+
+func TestValidateMessageRejectsTamperedHDParentPubKey(t *testing.T) {
+	t.Parallel()
+
+	rootIdentity, err := RecoverHDIdentity(
+		"agent://news/world-01",
+		"agent://alice",
+		"abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
+		time.Date(2026, 3, 18, 12, 0, 0, 0, time.UTC),
+	)
+	if err != nil {
+		t.Fatalf("RecoverHDIdentity error = %v", err)
+	}
+	childIdentity, err := DeriveChildIdentity(rootIdentity, "agent://alice/work", time.Date(2026, 3, 18, 12, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatalf("DeriveChildIdentity error = %v", err)
+	}
+	msg, body, err := BuildMessage(MessageInput{
+		Kind:     "post",
+		Author:   "agent://alice/work",
+		Channel:  "hao.news/world",
+		Title:    "hd child hello",
+		Body:     "signed body",
+		Identity: &childIdentity,
+		Extensions: map[string]any{
+			"project": "hao.news",
+		},
+		CreatedAt: time.Date(2026, 3, 18, 12, 1, 0, 0, time.UTC),
+	})
+	if err != nil {
+		t.Fatalf("BuildMessage error = %v", err)
+	}
+	msg.Extensions["hd.parent_pubkey"] = strings.Repeat("0", 64)
+	if err := ValidateMessage(msg, body); err == nil {
+		t.Fatal("expected validation error after tampering hd.parent_pubkey")
+	}
+}
+
+func TestValidateMessageRejectsTamperedHDPath(t *testing.T) {
+	t.Parallel()
+
+	rootIdentity, err := RecoverHDIdentity(
+		"agent://news/world-01",
+		"agent://alice",
+		"abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
+		time.Date(2026, 3, 18, 12, 0, 0, 0, time.UTC),
+	)
+	if err != nil {
+		t.Fatalf("RecoverHDIdentity error = %v", err)
+	}
+	childIdentity, err := DeriveChildIdentity(rootIdentity, "agent://alice/work", time.Date(2026, 3, 18, 12, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatalf("DeriveChildIdentity error = %v", err)
+	}
+	msg, body, err := BuildMessage(MessageInput{
+		Kind:     "post",
+		Author:   "agent://alice/work",
+		Channel:  "hao.news/world",
+		Title:    "hd child hello",
+		Body:     "signed body",
+		Identity: &childIdentity,
+		Extensions: map[string]any{
+			"project": "hao.news",
+		},
+		CreatedAt: time.Date(2026, 3, 18, 12, 1, 0, 0, time.UTC),
+	})
+	if err != nil {
+		t.Fatalf("BuildMessage error = %v", err)
+	}
+	msg.Extensions["hd.path"] = "m/0'/999'"
+	if err := ValidateMessage(msg, body); err == nil {
+		t.Fatal("expected validation error after tampering hd.path")
 	}
 }

@@ -109,10 +109,19 @@ func RunSync(ctx context.Context, opts SyncOptions, logf func(string, ...any)) e
 			return resolveDHTRouters(network, dhtRouters)
 		}
 	}
-	if strings.TrimSpace(opts.ListenAddr) != "" {
-		cfg.SetListenAddr(opts.ListenAddr)
-	} else if strings.TrimSpace(netCfg.BitTorrentListen) != "" {
-		cfg.SetListenAddr(normalizeBitTorrentListen(netCfg.BitTorrentListen))
+	configuredBTListen := ""
+	switch {
+	case strings.TrimSpace(opts.ListenAddr) != "":
+		configuredBTListen = normalizeBitTorrentListen(opts.ListenAddr)
+	case strings.TrimSpace(netCfg.BitTorrentListen) != "":
+		configuredBTListen = normalizeBitTorrentListen(netCfg.BitTorrentListen)
+	}
+	if configuredBTListen != "" {
+		resolvedBTListen, err := resolveBitTorrentListenAddr(configuredBTListen)
+		if err != nil {
+			return fmt.Errorf("resolve bittorrent listen: %w", err)
+		}
+		cfg.SetListenAddr(resolvedBTListen)
 	}
 	client, err := torrent.NewClient(cfg)
 	if err != nil {
@@ -133,19 +142,20 @@ func RunSync(ctx context.Context, opts SyncOptions, logf func(string, ...any)) e
 	defer libp2pRuntime.Close()
 
 	runtime := &syncRuntime{
-		store:           store,
-		queuePath:       queuePath,
-		mode:            syncMode(opts.Once),
-		seed:            opts.Seed,
-		startedAt:       time.Now().UTC(),
-		torrentClient:   client,
-		libp2p:          libp2pRuntime,
-		netCfg:          netCfg,
-		trackers:        trackers,
-		subscriptions:   subscriptions,
-		announced:       make(map[string]struct{}),
-		announcedProofs: make(map[string]struct{}),
-		seeded:          make(map[string]struct{}),
+		store:              store,
+		queuePath:          queuePath,
+		mode:               syncMode(opts.Once),
+		seed:               opts.Seed,
+		startedAt:          time.Now().UTC(),
+		torrentClient:      client,
+		libp2p:             libp2pRuntime,
+		netCfg:             netCfg,
+		trackers:           trackers,
+		subscriptions:      subscriptions,
+		announced:          make(map[string]struct{}),
+		announcedProofs:    make(map[string]struct{}),
+		seeded:             make(map[string]struct{}),
+		configuredBTListen: configuredBTListen,
 	}
 	runtime.creditStore, err = OpenCreditStore(store.Root)
 	if err != nil {
@@ -240,24 +250,25 @@ func RunSync(ctx context.Context, opts SyncOptions, logf func(string, ...any)) e
 }
 
 type syncRuntime struct {
-	mu              sync.Mutex
-	store           *Store
-	queuePath       string
-	mode            string
-	seed            bool
-	startedAt       time.Time
-	torrentClient   *torrent.Client
-	libp2p          *libp2pRuntime
-	pubsub          *pubsubRuntime
-	creditStore     *CreditStore
-	creditIdentity  *AgentIdentity
-	netCfg          NetworkBootstrapConfig
-	trackers        []string
-	subscriptions   SyncSubscriptions
-	announced       map[string]struct{}
-	announcedProofs map[string]struct{}
-	seeded          map[string]struct{}
-	activity        SyncActivityStatus
+	mu                 sync.Mutex
+	store              *Store
+	queuePath          string
+	mode               string
+	seed               bool
+	startedAt          time.Time
+	torrentClient      *torrent.Client
+	libp2p             *libp2pRuntime
+	pubsub             *pubsubRuntime
+	creditStore        *CreditStore
+	creditIdentity     *AgentIdentity
+	netCfg             NetworkBootstrapConfig
+	trackers           []string
+	subscriptions      SyncSubscriptions
+	announced          map[string]struct{}
+	announcedProofs    map[string]struct{}
+	seeded             map[string]struct{}
+	activity           SyncActivityStatus
+	configuredBTListen string
 }
 
 func (r *syncRuntime) setQueueRefs(n int) {
@@ -306,7 +317,7 @@ func (r *syncRuntime) writeStatus(ctx context.Context) error {
 		SyncActivity: activity,
 	}
 	status.LibP2P = r.libp2p.Status(ctx)
-	status.BitTorrentDHT = torrentStatus(r.torrentClient, effectiveDHTRouterCount(r.netCfg))
+	status.BitTorrentDHT = torrentStatus(r.torrentClient, effectiveDHTRouterCount(r.netCfg), r.configuredBTListen)
 	status.PubSub = r.pubsub.Status()
 	return writeSyncStatus(r.store, status)
 }
@@ -739,9 +750,15 @@ func (r *syncRuntime) enqueueHistoryFromLANPeers(ctx context.Context, logf func(
 	return added, nil
 }
 
-func torrentStatus(client *torrent.Client, configuredRouters int) SyncBitTorrentStatus {
+func torrentStatus(client *torrent.Client, configuredRouters int, configuredListen string) SyncBitTorrentStatus {
+	listenAddrs := make([]string, 0, len(client.ListenAddrs()))
+	for _, addr := range client.ListenAddrs() {
+		listenAddrs = append(listenAddrs, addr.String())
+	}
 	status := SyncBitTorrentStatus{
 		Enabled:           len(client.DhtServers()) > 0,
+		ConfiguredListen:  configuredListen,
+		ListenAddrs:       listenAddrs,
 		ConfiguredRouters: configuredRouters,
 		Servers:           len(client.DhtServers()),
 	}

@@ -134,6 +134,7 @@ func (s *ManagedSyncSupervisor) loop(ctx context.Context) {
 		backoff = time.Second
 		staleTicker := time.NewTicker(30 * time.Second)
 		running := true
+		shouldDelay := false
 		for running {
 			select {
 			case <-ctx.Done():
@@ -144,6 +145,7 @@ func (s *ManagedSyncSupervisor) loop(ctx context.Context) {
 				s.recordExit(err)
 				staleTicker.Stop()
 				s.cfg.Logf("managed sync: worker exited: %v", err)
+				shouldDelay = true
 				running = false
 			case <-staleTicker.C:
 				restartReason := s.syncRestartReason(time.Now())
@@ -152,8 +154,19 @@ func (s *ManagedSyncSupervisor) loop(ctx context.Context) {
 					s.cfg.Logf("managed sync: %s detected, restarting worker", restartReason)
 					staleTicker.Stop()
 					s.kill(cmd)
+					shouldDelay = true
 					running = false
 				}
+			}
+		}
+		if shouldDelay {
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(backoff):
+			}
+			if backoff < 10*time.Second {
+				backoff *= 2
 			}
 		}
 	}
@@ -244,7 +257,12 @@ func resolveManagedSyncBinary(cfg ManagedSyncConfig) (string, error) {
 		candidates = append(candidates, value)
 	}
 	if exe, err := os.Executable(); err == nil {
-		candidates = append(candidates, filepath.Join(filepath.Dir(exe), projectSyncBinaryName+platformExecutableSuffix()))
+		candidates = append(candidates,
+			exe,
+			filepath.Join(filepath.Dir(exe), projectSyncBinaryName+platformExecutableSuffix()),
+			filepath.Join(filepath.Dir(exe), "haonews"+platformExecutableSuffix()),
+			filepath.Join(filepath.Dir(exe), "haonewsd"+platformExecutableSuffix()),
+		)
 	}
 	if cwd, err := os.Getwd(); err == nil {
 		candidates = append(candidates,
@@ -268,7 +286,7 @@ func resolveManagedSyncBinary(cfg ManagedSyncConfig) (string, error) {
 			return candidate, nil
 		}
 	}
-	return "", errors.New("managed sync binary not found; build hao-news-syncd into ~/.hao-news/bin or pass --sync-binary")
+	return "", errors.New("managed sync binary not found; build hao-news-syncd into ~/.hao-news/bin, install haonews into PATH, or pass --sync-binary")
 }
 
 func (s *ManagedSyncSupervisor) syncRestartReason(now time.Time) string {

@@ -22,6 +22,7 @@ type libp2pRuntime struct {
 	mdns               mdns.Service
 	mdnsTracker        *mdnsTracker
 	networkID          string
+	configuredListen   []string
 	mdnsServiceName    string
 	bootstraps         []peer.AddrInfo
 	rendezvous         []string
@@ -34,9 +35,16 @@ func startLibP2PRuntime(ctx context.Context, cfg NetworkBootstrapConfig) (*libp2
 		return nil, nil
 	}
 
-	h, err := libp2p.New(
-		libp2p.Ping(true),
-	)
+	hostOptions := []libp2p.Option{libp2p.Ping(true)}
+	configuredListen := append([]string(nil), cfg.LibP2PListen...)
+	if len(configuredListen) > 0 {
+		resolvedListen, err := resolveLibP2PListenAddrs(configuredListen)
+		if err != nil {
+			return nil, fmt.Errorf("resolve libp2p listen addrs: %w", err)
+		}
+		hostOptions = append(hostOptions, libp2p.ListenAddrStrings(resolvedListen...))
+	}
+	h, err := libp2p.New(hostOptions...)
 	if err != nil {
 		return nil, fmt.Errorf("create libp2p host: %w", err)
 	}
@@ -50,11 +58,11 @@ func startLibP2PRuntime(ctx context.Context, cfg NetworkBootstrapConfig) (*libp2
 		return nil, err
 	}
 
-	options := []kaddht.Option{kaddht.Mode(kaddht.ModeAutoServer)}
+	dhtOptions := []kaddht.Option{kaddht.Mode(kaddht.ModeAutoServer)}
 	if len(peers) > 0 {
-		options = append(options, kaddht.BootstrapPeers(peers...))
+		dhtOptions = append(dhtOptions, kaddht.BootstrapPeers(peers...))
 	}
-	dht, err := kaddht.New(ctx, h, options...)
+	dht, err := kaddht.New(ctx, h, dhtOptions...)
 	if err != nil {
 		_ = h.Close()
 		return nil, fmt.Errorf("create libp2p dht: %w", err)
@@ -74,15 +82,16 @@ func startLibP2PRuntime(ctx context.Context, cfg NetworkBootstrapConfig) (*libp2
 	}
 	now := time.Now().UTC()
 	return &libp2pRuntime{
-		host:            h,
-		dht:             dht,
-		ping:            ping.NewPingService(h),
-		mdns:            mdnsService,
-		mdnsTracker:     mdnsTracker,
-		networkID:       cfg.NetworkID,
-		mdnsServiceName: serviceName,
-		bootstraps:      peers,
-		rendezvous:      append([]string(nil), cfg.LibP2PRendezvous...),
+		host:             h,
+		dht:              dht,
+		ping:             ping.NewPingService(h),
+		mdns:             mdnsService,
+		mdnsTracker:      mdnsTracker,
+		networkID:        cfg.NetworkID,
+		configuredListen: configuredListen,
+		mdnsServiceName:  serviceName,
+		bootstraps:       peers,
+		rendezvous:       append([]string(nil), cfg.LibP2PRendezvous...),
 		bootstrapWarning: func() string {
 			if lanErr != nil {
 				return lanErr.Error()
@@ -117,6 +126,7 @@ func (r *libp2pRuntime) Status(ctx context.Context) SyncLibP2PStatus {
 	status := SyncLibP2PStatus{
 		Enabled:              true,
 		PeerID:               r.host.ID().String(),
+		ConfiguredListen:     append([]string(nil), r.configuredListen...),
 		ConfiguredBootstrap:  len(r.bootstraps),
 		ConfiguredRendezvous: len(r.rendezvous),
 		MDNS: SyncMDNSStatus{

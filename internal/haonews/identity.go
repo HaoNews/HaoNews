@@ -145,7 +145,7 @@ func DeriveChildIdentity(identity AgentIdentity, author string, createdAt time.T
 	if err != nil {
 		return AgentIdentity{}, err
 	}
-	publicKey, _, _, err := DeriveHDKey(seed, path)
+	publicKey, privateKey, _, err := DeriveHDKey(seed, path)
 	if err != nil {
 		return AgentIdentity{}, err
 	}
@@ -157,6 +157,7 @@ func DeriveChildIdentity(identity AgentIdentity, author string, createdAt time.T
 		Author:          strings.TrimSpace(author),
 		KeyType:         KeyTypeEd25519,
 		PublicKey:       publicKey,
+		PrivateKey:      privateKey,
 		CreatedAt:       createdAt.UTC().Format(time.RFC3339),
 		HDEnabled:       true,
 		MasterPubKey:    identity.MasterPubKey,
@@ -470,6 +471,13 @@ func validateHDOriginMetadata(msg Message) error {
 	}
 	if _, err := ParseDerivationPath(path); err != nil {
 		return err
+	}
+	expectedPath, err := PathFromURI(msg.Author)
+	if err != nil {
+		return err
+	}
+	if strings.TrimSpace(path) != expectedPath {
+		return errors.New("hd.path must match the child author derivation path")
 	}
 	return nil
 }

@@ -234,6 +234,52 @@ func TestRunPublishWritesSignedMessage(t *testing.T) {
 	if msg.Origin.AgentID != identity.AgentID {
 		t.Fatalf("origin.agent_id = %q, want %q", msg.Origin.AgentID, identity.AgentID)
 	}
+	if got := msg.Extensions["project"]; got != "hao.news" {
+		t.Fatalf("extensions.project = %#v, want hao.news", got)
+	}
+}
+
+func TestRunPublishDefaultsProjectExtension(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	store := filepath.Join(root, "store")
+	if _, err := haonews.OpenStore(store); err != nil {
+		t.Fatalf("OpenStore error = %v", err)
+	}
+	identity, err := haonews.NewAgentIdentity("agent://news/world-01", "agent://demo/alice", time.Now().UTC())
+	if err != nil {
+		t.Fatalf("NewAgentIdentity error = %v", err)
+	}
+	identityPath := filepath.Join(root, "identity.json")
+	if err := haonews.SaveAgentIdentity(identityPath, identity); err != nil {
+		t.Fatalf("SaveAgentIdentity error = %v", err)
+	}
+	if err := run([]string{
+		"publish",
+		"--store", store,
+		"--identity-file", identityPath,
+		"--kind", "post",
+		"--channel", "hao.news/world",
+		"--title", "Signed post",
+		"--body", "hello signed world",
+	}); err != nil {
+		t.Fatalf("run(publish) error = %v", err)
+	}
+	entries, err := os.ReadDir(filepath.Join(store, "data"))
+	if err != nil {
+		t.Fatalf("ReadDir error = %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("content dirs = %d, want 1", len(entries))
+	}
+	msg, _, err := haonews.LoadMessage(filepath.Join(store, "data", entries[0].Name()))
+	if err != nil {
+		t.Fatalf("LoadMessage error = %v", err)
+	}
+	if got := msg.Extensions["project"]; got != "hao.news" {
+		t.Fatalf("extensions.project = %#v, want hao.news", got)
+	}
 }
 
 func TestRunIdentityCreateHDAndDerive(t *testing.T) {
@@ -285,11 +331,80 @@ func TestRunIdentityCreateHDAndDerive(t *testing.T) {
 	if child.Mnemonic != "" {
 		t.Fatal("expected derived child file to omit mnemonic")
 	}
-	if child.PrivateKey != "" {
-		t.Fatal("expected derived child file to omit private key")
+	if child.PrivateKey == "" {
+		t.Fatal("expected derived child file to include private key")
 	}
 	if child.DerivationPath == "" {
 		t.Fatal("expected child derivation path")
+	}
+}
+
+func TestRunPublishWithDerivedChildIdentity(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	store := filepath.Join(root, "store")
+	masterPath := filepath.Join(root, "alice.json")
+	childPath := filepath.Join(root, "alice-work.json")
+
+	if _, err := haonews.OpenStore(store); err != nil {
+		t.Fatalf("OpenStore error = %v", err)
+	}
+	if err := run([]string{
+		"identity",
+		"create-hd",
+		"--agent-id", "agent://news/root-01",
+		"--author", "agent://alice",
+		"--out", masterPath,
+	}); err != nil {
+		t.Fatalf("run(identity create-hd) error = %v", err)
+	}
+	if err := run([]string{
+		"identity",
+		"derive",
+		"--identity-file", masterPath,
+		"--author", "agent://alice/work",
+		"--out", childPath,
+	}); err != nil {
+		t.Fatalf("run(identity derive) error = %v", err)
+	}
+	child, err := haonews.LoadAgentIdentity(childPath)
+	if err != nil {
+		t.Fatalf("LoadAgentIdentity(child) error = %v", err)
+	}
+	if child.PrivateKey == "" {
+		t.Fatal("expected derived child file to include private key")
+	}
+	if err := run([]string{
+		"publish",
+		"--store", store,
+		"--identity-file", childPath,
+		"--kind", "post",
+		"--channel", "hao.news/world",
+		"--title", "Child signed post",
+		"--body", "hello from child signing identity",
+	}); err != nil {
+		t.Fatalf("run(publish) error = %v", err)
+	}
+	entries, err := os.ReadDir(filepath.Join(store, "data"))
+	if err != nil {
+		t.Fatalf("ReadDir error = %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("content dirs = %d, want 1", len(entries))
+	}
+	msg, _, err := haonews.LoadMessage(filepath.Join(store, "data", entries[0].Name()))
+	if err != nil {
+		t.Fatalf("LoadMessage error = %v", err)
+	}
+	if msg.Origin == nil {
+		t.Fatal("expected signed origin")
+	}
+	if msg.Origin.PublicKey != child.PublicKey {
+		t.Fatalf("origin.public_key = %q, want %q", msg.Origin.PublicKey, child.PublicKey)
+	}
+	if got := msg.Extensions["hd.parent"]; got != "agent://alice" {
+		t.Fatalf("hd.parent = %#v", got)
 	}
 }
 

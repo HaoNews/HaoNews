@@ -46,14 +46,15 @@ type Config struct {
 }
 
 type Instance struct {
-	config Config
-	site   *apphost.Site
-	server *http.Server
+	config   Config
+	site     *apphost.Site
+	server   *http.Server
+	listener net.Listener
 }
 
 func New(ctx context.Context, cfg Config) (*Instance, error) {
 	cfg = normalizeConfig(cfg)
-	resolvedListenAddr, err := resolveListenAddr(cfg.ListenAddr)
+	listener, resolvedListenAddr, err := reserveListenAddr(cfg.ListenAddr)
 	if err != nil {
 		return nil, err
 	}
@@ -190,11 +191,12 @@ func New(ctx context.Context, cfg Config) (*Instance, error) {
 			Addr:    cfg.ListenAddr,
 			Handler: site.Handler,
 		},
+		listener: listener,
 	}, nil
 }
 
 func (i *Instance) ListenAndServe(ctx context.Context) error {
-	if i == nil || i.server == nil {
+	if i == nil || i.server == nil || i.listener == nil {
 		return errors.New("host instance is not initialized")
 	}
 	errCh := make(chan error, 1)
@@ -206,7 +208,7 @@ func (i *Instance) ListenAndServe(ctx context.Context) error {
 		_ = i.site.Shutdown(shutdownCtx)
 	}()
 	go func() {
-		errCh <- i.server.ListenAndServe()
+		errCh <- i.server.Serve(i.listener)
 	}()
 	err := <-errCh
 	if errors.Is(err, http.ErrServerClosed) {
@@ -223,7 +225,13 @@ func (i *Instance) Site() *apphost.Site {
 }
 
 func (i *Instance) ListenAddr() string {
-	if i == nil || i.server == nil {
+	if i == nil {
+		return ""
+	}
+	if i.listener != nil {
+		return i.listener.Addr().String()
+	}
+	if i.server == nil {
 		return ""
 	}
 	return i.server.Addr
@@ -249,31 +257,53 @@ func normalizeConfig(cfg Config) Config {
 }
 
 func resolveListenAddr(addr string) (string, error) {
+	listener, resolved, err := reserveListenAddr(addr)
+	if listener != nil {
+		_ = listener.Close()
+	}
+	return resolved, err
+}
+
+func reserveListenAddr(addr string) (net.Listener, string, error) {
 	addr = strings.TrimSpace(addr)
 	if addr == "" {
-		return "", errors.New("listen address is required")
+		return nil, "", errors.New("listen address is required")
 	}
 	host, portText, err := net.SplitHostPort(addr)
 	if err != nil {
-		return addr, nil
+		listener, err := net.Listen("tcp", addr)
+		if err != nil {
+			return nil, "", err
+		}
+		return listener, listener.Addr().String(), nil
 	}
 	port, err := strconv.Atoi(strings.TrimSpace(portText))
-	if err != nil || port <= 0 {
-		return addr, nil
+	if err != nil {
+		listener, err := net.Listen("tcp", addr)
+		if err != nil {
+			return nil, "", err
+		}
+		return listener, listener.Addr().String(), nil
 	}
-	for candidate := port; candidate < port+100; candidate++ {
+	if port <= 0 {
+		listener, err := net.Listen("tcp", addr)
+		if err != nil {
+			return nil, "", err
+		}
+		return listener, listener.Addr().String(), nil
+	}
+	for candidate := port; candidate <= 65535; candidate++ {
 		next := net.JoinHostPort(host, strconv.Itoa(candidate))
 		listener, err := net.Listen("tcp", next)
 		if err != nil {
 			if isAddrInUse(err) {
 				continue
 			}
-			return "", err
+			return nil, "", err
 		}
-		_ = listener.Close()
-		return next, nil
+		return listener, listener.Addr().String(), nil
 	}
-	return "", fmt.Errorf("no available listen port found starting from %s", addr)
+	return nil, "", fmt.Errorf("no available listen port found starting from %s", addr)
 }
 
 func isAddrInUse(err error) bool {

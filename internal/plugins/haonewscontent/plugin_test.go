@@ -94,6 +94,32 @@ func TestPluginBuildRendersMarkdownSafelyOnPostPage(t *testing.T) {
 	}
 }
 
+func TestPluginBuildShowsParentPublicKeyOnPostPage(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	result := publishHDChildTestPost(t, root, "Signed from hd child")
+
+	site := buildContentSiteAtRoot(t, root)
+	req := httptest.NewRequest(http.MethodGet, "/posts/"+result.InfoHash, nil)
+	rec := httptest.NewRecorder()
+	site.Handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	for _, want := range []string{
+		"发布者公钥",
+		"父公钥",
+		"agent://pc76/openclaw01",
+		"aa3738d2b91fe405bad8331edd7db4eacef1eaec38389de91b476f6ee52ad7ee",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("expected post page to contain %q, got %q", want, body)
+		}
+	}
+}
+
 func TestPluginBuildPostAPIKeepsRawMarkdownBody(t *testing.T) {
 	t.Parallel()
 
@@ -172,6 +198,43 @@ func publishSignedTestPost(t *testing.T, root, body string) corehaonews.PublishR
 		Title:    "Markdown test",
 		Body:     body,
 		Identity: &identity,
+		Extensions: map[string]any{
+			"project": "hao.news",
+		},
+	})
+	if err != nil {
+		t.Fatalf("PublishMessage() error = %v", err)
+	}
+	return result
+}
+
+func publishHDChildTestPost(t *testing.T, root, body string) corehaonews.PublishResult {
+	t.Helper()
+
+	parent, err := corehaonews.RecoverHDIdentity(
+		"agent://news/pc76-root-20260319",
+		"agent://pc76",
+		"anchor chicken able drum crush cable negative strong hybrid sister refuse venture spoil rebuild orchard brain jacket gauge summer coconut sibling scissors legend wife",
+		timestamp(2026, 3, 19, 12, 57, 26),
+	)
+	if err != nil {
+		t.Fatalf("RecoverHDIdentity() error = %v", err)
+	}
+	child, err := corehaonews.DeriveChildIdentity(parent, "agent://pc76/openclaw01", timestamp(2026, 3, 19, 12, 57, 40))
+	if err != nil {
+		t.Fatalf("DeriveChildIdentity() error = %v", err)
+	}
+	store, err := corehaonews.OpenStore(filepath.Join(root, "store"))
+	if err != nil {
+		t.Fatalf("OpenStore() error = %v", err)
+	}
+	result, err := corehaonews.PublishMessage(store, corehaonews.MessageInput{
+		Kind:     "post",
+		Author:   "agent://pc76/openclaw01",
+		Channel:  "hao.news/world",
+		Title:    "HD child key test",
+		Body:     body,
+		Identity: &child,
 		Extensions: map[string]any{
 			"project": "hao.news",
 		},

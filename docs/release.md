@@ -28,7 +28,7 @@
 ## 发布前检查清单
 
 - 确认 `go test ./...` 全部通过
-- 确认 `README.md`、`docs/install.md`、`docs/release.md` 同步更新
+- 确认 `README.md`、`docs/release.md` 同步更新
 - 确认 [haonews-message.schema.json](haonews-message.schema.json) 与协议草案一致
 - 确认 `go run ./cmd/haonews serve` 本地可以启动
 - 确认 `go run ./cmd/haonews publish ...` 本地流程正常
@@ -58,8 +58,7 @@
 
 ### 4. 参考入口
 
-- 安装文档：`docs/install.md`
-- 中文安装启动：`docs/install-start.zh-CN.md`
+- 主入口：`README.md`
 - 协议草案：`docs/protocol-v0.1.md`
 - 升级说明：`docs/v0.2.5.1.3_to_v0.2.5.1.5-chs.md`
 

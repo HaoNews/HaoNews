@@ -57,6 +57,22 @@ func TestResolveManagedSyncBinaryPrefersRuntimePath(t *testing.T) {
 	}
 }
 
+func TestResolveManagedSyncBinaryFallsBackToCurrentExecutable(t *testing.T) {
+	t.Parallel()
+
+	want, err := os.Executable()
+	if err != nil {
+		t.Fatalf("Executable() error = %v", err)
+	}
+	got, err := resolveManagedSyncBinary(ManagedSyncConfig{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != want {
+		t.Fatalf("resolveManagedSyncBinary() = %q, want %q", got, want)
+	}
+}
+
 func TestEvaluateSyncHealthDetectsStaleHeartbeat(t *testing.T) {
 	t.Parallel()
 	now := time.Date(2026, 3, 13, 12, 0, 0, 0, time.UTC)

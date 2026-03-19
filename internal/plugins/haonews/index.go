@@ -177,6 +177,7 @@ func buildIndex(bundles []Bundle, project string) Index {
 				SourceSiteName:  nestedString(bundle.Message.Extensions, "source", "name"),
 				SourceURL:       nestedString(bundle.Message.Extensions, "source", "url"),
 				OriginPublicKey: originPublicKey(bundle.Message),
+				ParentPublicKey: nestedString(bundle.Message.Extensions, "hd.parent_pubkey"),
 				HasSourcePage:   hasSourcePage(bundle.Message),
 				Topics:          stringSlice(bundle.Message.Extensions["topics"]),
 				ChannelGroup:    channelGroup(bundle.Message.Channel),

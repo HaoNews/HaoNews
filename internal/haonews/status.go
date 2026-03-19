@@ -25,6 +25,7 @@ type SyncRuntimeStatus struct {
 type SyncLibP2PStatus struct {
 	Enabled              bool           `json:"enabled"`
 	PeerID               string         `json:"peer_id,omitempty"`
+	ConfiguredListen     []string       `json:"configured_listen,omitempty"`
 	ListenAddrs          []string       `json:"listen_addrs,omitempty"`
 	ConfiguredBootstrap  int            `json:"configured_bootstrap"`
 	ConfiguredRendezvous int            `json:"configured_rendezvous"`
@@ -58,13 +59,15 @@ type SyncPeerRef struct {
 }
 
 type SyncBitTorrentStatus struct {
-	Enabled                 bool   `json:"enabled"`
-	ConfiguredRouters       int    `json:"configured_routers"`
-	Servers                 int    `json:"servers"`
-	GoodNodes               int    `json:"good_nodes"`
-	Nodes                   int    `json:"nodes"`
-	OutstandingTransactions int    `json:"outstanding_transactions"`
-	LastError               string `json:"last_error,omitempty"`
+	Enabled                 bool     `json:"enabled"`
+	ConfiguredListen        string   `json:"configured_listen,omitempty"`
+	ListenAddrs             []string `json:"listen_addrs,omitempty"`
+	ConfiguredRouters       int      `json:"configured_routers"`
+	Servers                 int      `json:"servers"`
+	GoodNodes               int      `json:"good_nodes"`
+	Nodes                   int      `json:"nodes"`
+	OutstandingTransactions int      `json:"outstanding_transactions"`
+	LastError               string   `json:"last_error,omitempty"`
 }
 
 type SyncPubSubStatus struct {

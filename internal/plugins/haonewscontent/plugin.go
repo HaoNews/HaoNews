@@ -17,8 +17,9 @@ func (Plugin) Manifest() apphost.PluginManifest {
 	return apphost.MustLoadPluginManifestJSON(pluginManifestJSON)
 }
 
-func (Plugin) Build(_ context.Context, cfg apphost.Config, theme apphost.WebTheme) (*apphost.Site, error) {
+func (Plugin) Build(ctx context.Context, cfg apphost.Config, theme apphost.WebTheme) (*apphost.Site, error) {
 	cfg = newsplugin.ApplyDefaultConfig(cfg)
+	options := newsplugin.OptionsForPlugins(newsplugin.ContentOnlyAppOptions(), cfg)
 	app, err := newsplugin.NewWithThemeAndOptions(
 		cfg.StoreRoot,
 		cfg.Project,
@@ -28,8 +29,12 @@ func (Plugin) Build(_ context.Context, cfg apphost.Config, theme apphost.WebThem
 		cfg.WriterPolicyPath,
 		cfg.NetPath,
 		theme,
-		newsplugin.OptionsForPlugins(newsplugin.ContentOnlyAppOptions(), cfg),
+		options,
 	)
+	if err != nil {
+		return nil, err
+	}
+	stopSync, err := newsplugin.StartManagedSyncIfNeeded(ctx, cfg, options)
 	if err != nil {
 		return nil, err
 	}
@@ -41,5 +46,9 @@ func (Plugin) Build(_ context.Context, cfg apphost.Config, theme apphost.WebThem
 		Manifest: Plugin{}.Manifest(),
 		Theme:    theme.Manifest(),
 		Handler:  newHandler(app, staticFS),
+		Close: func(context.Context) error {
+			stopSync()
+			return nil
+		},
 	}, nil
 }

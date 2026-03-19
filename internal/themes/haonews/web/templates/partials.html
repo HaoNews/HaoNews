@@ -53,6 +53,31 @@
   const body = document.body;
   const sidebar = document.getElementById("app-sidebar");
   const toggle = document.querySelector("[data-sidebar-toggle]");
+  const copyText = async (text) => {
+    if (!text) return false;
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+    const input = document.createElement("textarea");
+    input.value = text;
+    input.setAttribute("readonly", "readonly");
+    input.style.position = "fixed";
+    input.style.opacity = "0";
+    document.body.appendChild(input);
+    input.focus();
+    input.select();
+    let ok = false;
+    try {
+      ok = document.execCommand("copy");
+    } finally {
+      document.body.removeChild(input);
+    }
+    if (!ok) {
+      throw new Error("copy command failed");
+    }
+    return true;
+  };
   if (!body || !sidebar || !toggle) return;
 
   const applyState = (hidden) => {
@@ -75,7 +100,7 @@
       if (!text) return;
       const original = button.textContent;
       try {
-        await navigator.clipboard.writeText(text);
+        await copyText(text);
         button.textContent = "已复制";
         window.setTimeout(() => {
           button.textContent = original;

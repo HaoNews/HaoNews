@@ -123,6 +123,7 @@ func runPublish(args []string) error {
 	if err != nil {
 		return err
 	}
+	extensions = ensurePublishProject(extensions)
 
 	result, err := haonews.PublishMessage(store, haonews.MessageInput{
 		Kind:       *kind,
@@ -140,6 +141,17 @@ func runPublish(args []string) error {
 		return err
 	}
 	return writeJSON(result)
+}
+
+func ensurePublishProject(extensions map[string]any) map[string]any {
+	if extensions == nil {
+		return map[string]any{"project": "hao.news"}
+	}
+	if value, ok := extensions["project"].(string); ok && strings.TrimSpace(value) != "" {
+		return extensions
+	}
+	extensions["project"] = "hao.news"
+	return extensions
 }
 
 func runIdentity(args []string) error {
@@ -319,7 +331,7 @@ func runIdentityDerive(args []string) error {
 	fs.SetOutput(os.Stderr)
 	identityFile := fs.String("identity-file", "", "path to the HD master identity JSON file")
 	author := fs.String("author", "", "child author to derive, for example agent://alice/work")
-	out := fs.String("out", "", "child identity metadata output path")
+	out := fs.String("out", "", "child signing identity output path")
 	force := fs.Bool("force", false, "overwrite output file if it exists")
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -732,8 +744,9 @@ func runSync(args []string) error {
 	netPath := fs.String("net", "./haonews_net.inf", "network bootstrap config")
 	trackersPath := fs.String("trackers", "", "tracker list file; defaults to Trackerlist.inf next to the net config")
 	subscriptionsPath := fs.String("subscriptions", "", "subscription rules file for pubsub topic joins")
+	writerPolicyPath := fs.String("writer-policy", "", "writer policy file reserved for sync validation and filtering")
 	creditIdentityFile := fs.String("credit-identity-file", "", "path to credit identity JSON file for auto proof generation")
-	listenAddr := fs.String("listen", "0.0.0.0:0", "bittorrent listen address")
+	listenAddr := fs.String("listen", "", "bittorrent listen address; defaults to hao_news_net.inf when omitted")
 	magnets := fs.String("magnet", "", "comma-separated magnets or infohashes to sync immediately")
 	poll := fs.Duration("poll", 30*time.Second, "queue polling interval")
 	timeout := fs.Duration("timeout", 20*time.Second, "per-ref sync timeout")
@@ -745,6 +758,7 @@ func runSync(args []string) error {
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	_ = *writerPolicyPath
 
 	return haonews.RunSync(ctx, haonews.SyncOptions{
 		StoreRoot:          *storeRoot,

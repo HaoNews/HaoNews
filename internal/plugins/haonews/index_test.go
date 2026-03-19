@@ -69,6 +69,7 @@ func TestBuildIndexPrefersOriginPublicKeyForSourceGrouping(t *testing.T) {
 	t.Parallel()
 
 	const pubKey = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+	const parentPubKey = "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
 	bundles := []Bundle{
 		{
 			InfoHash:  "post-1",
@@ -86,7 +87,8 @@ func TestBuildIndexPrefersOriginPublicKeyForSourceGrouping(t *testing.T) {
 					PublicKey: pubKey,
 				},
 				Extensions: map[string]any{
-					"project": "hao.news",
+					"project":          "hao.news",
+					"hd.parent_pubkey": parentPubKey,
 					"source": map[string]any{
 						"name": "BBC News",
 						"url":  "https://example.com/oil",
@@ -109,6 +111,9 @@ func TestBuildIndexPrefersOriginPublicKeyForSourceGrouping(t *testing.T) {
 	}
 	if post.OriginPublicKey != pubKey {
 		t.Fatalf("origin public key = %q, want %q", post.OriginPublicKey, pubKey)
+	}
+	if post.ParentPublicKey != parentPubKey {
+		t.Fatalf("parent public key = %q, want %q", post.ParentPublicKey, parentPubKey)
 	}
 	if !post.HasSourcePage {
 		t.Fatal("expected signed post to have a source page")

@@ -114,6 +114,13 @@
                 <code class="identity-code">{{.Post.OriginPublicKey}}</code>
                 <button class="button-link button-link-muted identity-copy-button" type="button" data-copy-text="{{.Post.OriginPublicKey}}">复制</button>
               </div>
+              {{if .Post.ParentPublicKey}}
+                <p class="micro-copy">如果这是 HD 子身份内容，下面展示该发帖公钥声明归属的父公钥。</p>
+                <div class="identity-reveal-body">
+                  <code class="identity-code">{{.Post.ParentPublicKey}}</code>
+                  <button class="button-link button-link-muted identity-copy-button" type="button" data-copy-text="{{.Post.ParentPublicKey}}">复制</button>
+                </div>
+              {{end}}
             {{else}}
               <p class="micro-copy">这条内容没有带签名的原始公钥，旧格式或未签名内容会继续沿用旧的来源分组方式。</p>
             {{end}}
