@@ -3,6 +3,7 @@ package haonewsops
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -48,15 +49,16 @@ lan_bt_peer=192.168.102.76
 	if err := os.WriteFile(netPath, []byte(netText), 0o644); err != nil {
 		t.Fatalf("WriteFile(netPath) error = %v", err)
 	}
-	healthText := `{
+	now := time.Now().UTC()
+	healthText := fmt.Sprintf(`{
   "entries": {
     "lan_peer|192.168.102.74": {
-      "last_success_at": "2026-03-20T10:00:00Z",
+      "last_success_at": %q,
       "observed_primary_host": "192.168.102.75",
       "observed_primary_from": "lan_peer"
     },
     "lan_bt_peer|192.168.102.76": {
-      "last_failure_at": "2026-03-20T10:01:00Z",
+      "last_failure_at": %q,
       "consecutive_failure": 2,
       "last_error": "dial timeout",
       "observed_primary_host": "192.168.102.75",
@@ -64,36 +66,36 @@ lan_bt_peer=192.168.102.76
     }
   }
 }
-`
+`, now.Add(-2*time.Minute).Format(time.RFC3339), now.Add(-3*time.Minute).Format(time.RFC3339))
 	if err := os.WriteFile(healthPath, []byte(healthText), 0o644); err != nil {
 		t.Fatalf("WriteFile(healthPath) error = %v", err)
 	}
-	knownGoodText := `{
+	knownGoodText := fmt.Sprintf(`{
   "network_id": "2c2d6cf7b255ba20d6ad01135654933851b02bd00c65c2a6a54b97ab56590475",
   "entries": {
     "QmKnownGood": {
-      "last_success_at": "2026-03-20T10:02:00Z",
+      "last_success_at": %q,
       "addrs": [
         "/ip4/192.168.102.75/tcp/50584/p2p/QmKnownGood"
       ]
     }
   }
 }
-`
+`, now.Add(-90*time.Second).Format(time.RFC3339))
 	if err := os.WriteFile(knownGoodPath, []byte(knownGoodText), 0o644); err != nil {
 		t.Fatalf("WriteFile(knownGoodPath) error = %v", err)
 	}
-	advertiseHealthText := `{
+	advertiseHealthText := fmt.Sprintf(`{
   "entries": {
     "192.168.102.75": {
       "success_count": 3,
       "failure_count": 1,
-      "last_success_at": "2026-03-20T10:03:00Z",
-      "last_failure_at": "2026-03-20T10:01:30Z"
+      "last_success_at": %q,
+      "last_failure_at": %q
     }
   }
 }
-`
+`, now.Add(-30*time.Second).Format(time.RFC3339), now.Add(-4*time.Minute).Format(time.RFC3339))
 	if err := os.WriteFile(advertiseHealthPath, []byte(advertiseHealthText), 0o644); err != nil {
 		t.Fatalf("WriteFile(advertiseHealthPath) error = %v", err)
 	}
