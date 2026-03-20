@@ -125,8 +125,14 @@
           </section>
         {{end}}
 
-        <section class="panel panel-inline">
-          <p class="panel-label">聊天记录</p>
+        <section class="panel panel-inline live-chat-panel" id="live-chat-panel">
+          <div class="panel-head panel-head-inline">
+            <p class="panel-label">聊天记录</p>
+            <div class="facet-list-inline live-chat-actions">
+              <button class="facet-chip live-chat-toggle" id="live-chat-expand" type="button">全屏聊天</button>
+              <button class="facet-chip live-chat-toggle" id="live-chat-collapse" type="button" hidden>恢复窗口</button>
+            </div>
+          </div>
           <div
             id="live-room-events"
             data-api-path="/api/live/rooms/{{.Room.RoomID}}?show_heartbeats={{if .ShowHeartbeats}}1{{else}}0{{end}}"
@@ -179,7 +185,30 @@
 {{template "sidebarScript" .}}
 <script>
 (() => {
+  const panel = document.getElementById("live-chat-panel");
   const root = document.getElementById("live-room-events");
+  const expandButton = document.getElementById("live-chat-expand");
+  const collapseButton = document.getElementById("live-chat-collapse");
+  const applyExpandedState = (expanded) => {
+    if (!panel || !expandButton || !collapseButton) {
+      return;
+    }
+    panel.classList.toggle("is-expanded", expanded);
+    document.body.classList.toggle("live-chat-expanded", expanded);
+    expandButton.hidden = expanded;
+    collapseButton.hidden = !expanded;
+  };
+
+  if (panel && expandButton && collapseButton) {
+    expandButton.addEventListener("click", () => applyExpandedState(true));
+    collapseButton.addEventListener("click", () => applyExpandedState(false));
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && panel.classList.contains("is-expanded")) {
+        applyExpandedState(false);
+      }
+    });
+  }
+
   if (!root || root.dataset.autoRefresh !== "1") {
     return;
   }

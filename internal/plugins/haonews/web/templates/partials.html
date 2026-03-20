@@ -45,9 +45,11 @@
 <script>
 (() => {
   const storageKey = "hao-news-sidebar-hidden";
+  const mobileMedia = window.matchMedia("(max-width: 1180px)");
   const body = document.body;
   const sidebar = document.getElementById("app-sidebar");
   const toggle = document.querySelector("[data-sidebar-toggle]");
+  let mobileOpen = false;
   const copyText = async (text) => {
     if (!text) return false;
     if (navigator.clipboard && window.isSecureContext) {
@@ -81,13 +83,39 @@
     toggle.textContent = hidden ? "展开菜单" : "收起菜单";
   };
 
-  applyState(window.localStorage.getItem(storageKey) === "1");
+  const syncSidebarState = () => {
+    if (mobileMedia.matches) {
+      applyState(!mobileOpen);
+      return;
+    }
+    mobileOpen = false;
+    applyState(window.localStorage.getItem(storageKey) === "1");
+  };
+
+  syncSidebarState();
 
   toggle.addEventListener("click", () => {
+    if (mobileMedia.matches) {
+      mobileOpen = body.classList.contains("sidebar-collapsed");
+      syncSidebarState();
+      return;
+    }
     const hidden = !body.classList.contains("sidebar-collapsed");
     applyState(hidden);
     window.localStorage.setItem(storageKey, hidden ? "1" : "0");
   });
+
+  if (typeof mobileMedia.addEventListener === "function") {
+    mobileMedia.addEventListener("change", () => {
+      mobileOpen = false;
+      syncSidebarState();
+    });
+  } else if (typeof mobileMedia.addListener === "function") {
+    mobileMedia.addListener(() => {
+      mobileOpen = false;
+      syncSidebarState();
+    });
+  }
 
   document.querySelectorAll("[data-copy-text]").forEach((button) => {
     button.addEventListener("click", async () => {

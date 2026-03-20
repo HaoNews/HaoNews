@@ -120,6 +120,25 @@ func TestPluginBuildServesLiveRoomDetails(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("AppendEvent error = %v", err)
 	}
+	if err := store.AppendEvent(room.RoomID, live.LiveMessage{
+		Protocol:     live.ProtocolVersion,
+		Type:         live.TypeArchiveNotice,
+		RoomID:       room.RoomID,
+		Sender:       room.Creator,
+		SenderPubKey: strings.Repeat("a", 64),
+		Seq:          2,
+		Timestamp:    "2026-03-19T00:00:20Z",
+		Payload: live.LivePayload{
+			Content: "/posts/abc123",
+			Metadata: map[string]any{
+				"archive.infohash":    "abc123",
+				"archive.viewer_url":  "/posts/abc123",
+				"archive.archived_at": "2026-03-19T00:05:00Z",
+			},
+		},
+	}); err != nil {
+		t.Fatalf("AppendEvent archive notice error = %v", err)
+	}
 	if err := store.SaveArchiveResult(room.RoomID, live.ArchiveResult{
 		RoomID:     room.RoomID,
 		Channel:    "hao.news/live",
@@ -152,6 +171,9 @@ func TestPluginBuildServesLiveRoomDetails(t *testing.T) {
 	}
 	if strings.Contains(body, "<span>heartbeat</span>") {
 		t.Fatalf("expected heartbeats hidden by default, got %q", body)
+	}
+	if strings.Contains(body, "<span>archive_notice</span>") || strings.Contains(body, "archive.archived_at") || strings.Contains(body, "附带结构化元数据") {
+		t.Fatalf("expected archive notices hidden by default, got %q", body)
 	}
 	if !strings.Contains(body, "显示心跳") || !strings.Contains(body, "关闭自动更新") {
 		t.Fatalf("expected spectator controls in body, got %q", body)
@@ -244,6 +266,23 @@ func TestPluginBuildServesLiveRoomAPIIncludesHeartbeatsWhenRequested(t *testing.
 	}); err != nil {
 		t.Fatalf("AppendEvent error = %v", err)
 	}
+	if err := store.AppendEvent(room.RoomID, live.LiveMessage{
+		Protocol:     live.ProtocolVersion,
+		Type:         live.TypeArchiveNotice,
+		RoomID:       room.RoomID,
+		Sender:       room.Creator,
+		SenderPubKey: strings.Repeat("a", 64),
+		Seq:          2,
+		Timestamp:    "2026-03-19T00:00:20Z",
+		Payload: live.LivePayload{
+			Content: "/posts/archive-1",
+			Metadata: map[string]any{
+				"archive.infohash": "archive-1",
+			},
+		},
+	}); err != nil {
+		t.Fatalf("AppendEvent archive notice error = %v", err)
+	}
 
 	req := httptest.NewRequest(http.MethodGet, "/api/live/rooms/"+room.RoomID+"?show_heartbeats=1", nil)
 	rec := httptest.NewRecorder()
@@ -257,6 +296,9 @@ func TestPluginBuildServesLiveRoomAPIIncludesHeartbeatsWhenRequested(t *testing.
 	}
 	if !strings.Contains(body, "\"type\": \"heartbeat\"") {
 		t.Fatalf("expected heartbeat event in API body, got %q", body)
+	}
+	if !strings.Contains(body, "\"type\": \"archive_notice\"") {
+		t.Fatalf("expected archive_notice event in API body when controls shown, got %q", body)
 	}
 }
 

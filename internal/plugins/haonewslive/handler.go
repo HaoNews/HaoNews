@@ -142,7 +142,7 @@ func handleAPILiveRoom(store *live.LocalStore, roomID string, w http.ResponseWri
 func filterLiveEvents(events []live.LiveMessage, showHeartbeats bool) []live.LiveMessage {
 	filtered := make([]live.LiveMessage, 0, len(events))
 	for _, event := range events {
-		if !showHeartbeats && strings.TrimSpace(event.Type) == live.TypeHeartbeat {
+		if !showHeartbeats && hidesByDefault(event) {
 			continue
 		}
 		if isMetadataOnlyControlEvent(event) {
@@ -151,6 +151,15 @@ func filterLiveEvents(events []live.LiveMessage, showHeartbeats bool) []live.Liv
 		filtered = append(filtered, event)
 	}
 	return filtered
+}
+
+func hidesByDefault(event live.LiveMessage) bool {
+	switch strings.TrimSpace(event.Type) {
+	case live.TypeHeartbeat, live.TypeArchiveNotice:
+		return true
+	default:
+		return false
+	}
 }
 
 func queryBool(r *http.Request, key string, defaultValue bool) bool {
